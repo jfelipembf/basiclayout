@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 
@@ -21,7 +21,8 @@ export const useUser = () => {
           setUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email,
-            photo: userData.photo || DEFAULT_PHOTO,
+            displayName: firebaseUser.displayName || userData.name,
+            photoURL: firebaseUser.photoURL || userData.photo || DEFAULT_PHOTO,
             ...userData
           });
         } else {
@@ -42,7 +43,15 @@ export const useUser = () => {
   const value = useMemo(() => ({
     user,
     loading,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    signOut: async () => {
+      try {
+        await firebaseSignOut(auth);
+      } catch (error) {
+        console.error('Erro ao fazer logout:', error);
+        throw error;
+      }
+    }
   }), [user, loading]);
 
   return value;

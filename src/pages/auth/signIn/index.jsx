@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useFirebase } from '../../../contexts/FirebaseContext';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../../../services/firebase';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const SignIn = () => {
@@ -9,7 +10,6 @@ const SignIn = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login } = useFirebase();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || '/dashboard';
@@ -20,7 +20,7 @@ const SignIn = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
+      await signInWithEmailAndPassword(auth, email, password);
       navigate(from, { replace: true });
     } catch (err) {
       setError('Email ou senha inválidos');

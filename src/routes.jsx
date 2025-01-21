@@ -16,8 +16,12 @@ import Dashboard from './pages/dashboard';
 import Profile from './pages/profile';
 import Progress from './pages/progress';
 import Workouts from './pages/workouts';
+import CreateWorkout from './pages/workouts/create';
+import Events from './pages/events';
+import CreateEvent from './pages/events/create';
 import WorkoutSession from './pages/workout-session';
 import Competitions from './pages/competitions';
+import Students from './pages/students';
 
 const AppRoutes = () => {
   return (
@@ -25,25 +29,26 @@ const AppRoutes = () => {
       <div className="app-wrapper bg-dark text-white">
         <Routes>
           {/* Auth Routes */}
-          <Route path="/auth">
-            <Route path="signin" element={<SignIn />} />
-            <Route path="signup" element={<SignUp />} />
-          </Route>
+          <Route path="/auth/signin" element={<SignIn />} />
+          <Route path="/auth/signup" element={<SignUp />} />
 
           {/* Protected Routes */}
           <Route path="/" element={<AdminLayout />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="profile" element={<Profile />} />
             <Route path="progress" element={<Progress />} />
             <Route path="workouts" element={<Workouts />} />
+            <Route path="workouts/create" element={<CreateWorkout />} />
+            <Route path="events" element={<Events />} />
+            <Route path="events/create" element={<CreateEvent />} />
             <Route path="competitions" element={<Competitions />} />
+            <Route path="students" element={<Students />} />
           </Route>
 
-          {/* Workout Session Route - Fora do AdminLayout */}
-          <Route path="workout-session" element={<WorkoutSession />} />
+          {/* Workout Session Route */}
+          <Route path="/workout-session" element={<WorkoutSession />} />
         </Routes>
-
         <ToastContainer
           position="top-right"
           autoClose={3000}

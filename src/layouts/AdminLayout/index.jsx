@@ -22,17 +22,35 @@ const AdminLayout = () => {
     return location.pathname === path;
   };
 
-  const handleNavigation = () => {
-    // Fecha o sidenav em todas as telas
-    setSidebarOpen(false);
-  };
+  const menuItems = [
+    { path: '/dashboard', icon: 'fas fa-chart-line', text: 'Dashboard' },
+    { path: '/progress', icon: 'fas fa-trophy', text: 'Progresso' },
+    { 
+      text: 'Treinos',
+      icon: 'fas fa-dumbbell',
+      submenu: [
+        { path: '/workouts', icon: 'fas fa-list', text: 'Lista de Treinos' },
+        { path: '/workouts/create', icon: 'fas fa-plus', text: 'Criar Treino' }
+      ]
+    },
+    { 
+      text: 'Eventos',
+      icon: 'fas fa-calendar-alt',
+      submenu: [
+        { path: '/events', icon: 'fas fa-list', text: 'Lista de Eventos' },
+        { path: '/events/create', icon: 'fas fa-plus', text: 'Criar Evento' }
+      ]
+    },
+    { path: '/students', icon: 'fas fa-users', text: 'Alunos' },
+    { path: '/competitions', icon: 'fas fa-medal', text: 'Competições' }
+  ];
 
   return (
     <div className="min-vh-100 bg-dark">
-      {/* Overlay */}
+      {/* Overlay - apenas para mobile */}
       {sidebarOpen && (
         <div 
-          className="position-fixed top-0 start-0 w-100 h-100 bg-black bg-opacity-50" 
+          className="position-fixed top-0 start-0 w-100 h-100 bg-black bg-opacity-50 d-lg-none" 
           style={{ zIndex: 1040 }}
           onClick={toggleSidebar}
         ></div>
@@ -50,26 +68,27 @@ const AdminLayout = () => {
               >
                 <i className="fas fa-bars fs-5"></i>
               </button>
-              <h5 className="text-white mb-0 fw-semibold">TRBasic</h5>
+              <h5 className="mb-0 text-white">TrBasic</h5>
             </div>
-            
+
+            {/* User Profile */}
             <div className="d-flex align-items-center">
-              <div className="d-flex align-items-center me-3">
-                <div className="user-avatar d-flex align-items-center justify-content-center me-2">
-                  <i className="fas fa-user"></i>
-                </div>
-                <div className="d-none d-sm-block">
-                  <div className="text-white small fw-medium">{user?.email}</div>
-                  <small className="text-white-50">Usuário</small>
-                </div>
+              <div className="me-3">
+                <div className="text-white">{user?.displayName || user?.email}</div>
+                <small className="text-white-50">Usuário</small>
               </div>
-              <button 
-                onClick={handleLogout}
-                className="btn btn-link text-white-50 p-1"
-                title="Sair"
-              >
-                <i className="fas fa-sign-out-alt"></i>
-              </button>
+              <div className="user-avatar d-flex align-items-center justify-content-center">
+                {user?.photoURL ? (
+                  <img 
+                    src={user.photoURL} 
+                    alt="Profile" 
+                    className="rounded-circle"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <i className="fas fa-user text-white-50"></i>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -77,58 +96,76 @@ const AdminLayout = () => {
 
       {/* Sidebar */}
       <nav className={`sidebar position-fixed h-100 bg-dark ${sidebarOpen ? 'open' : ''}`}>
-        <div className="d-flex flex-column h-100 pt-5">
-          {/* Navigation */}
-          <div className="p-3">
-            <div className="nav flex-column">
-              <Link 
-                to="/dashboard" 
-                className={`nav-link ${isLinkActive('/dashboard') ? 'active' : ''}`}
-                onClick={handleNavigation}
+        <div className="d-flex flex-column h-100">
+          {/* Sidebar Header */}
+          <div className="p-3 border-bottom border-secondary">
+            <div className="d-flex align-items-center justify-content-between">
+              <h5 className="mb-0 text-white">Menu</h5>
+              <button 
+                className="btn btn-link text-white-50 d-lg-none p-0"
+                onClick={toggleSidebar}
               >
-                <i className="fas fa-chart-line me-2"></i>
-                <span>Dashboard</span>
-              </Link>
-              <Link 
-                to="/workouts" 
-                className={`nav-link ${isLinkActive('/workouts') ? 'active' : ''}`}
-                onClick={handleNavigation}
-              >
-                <i className="fas fa-dumbbell me-2"></i>
-                <span>Treinos</span>
-              </Link>
-              <Link 
-                to="/progress" 
-                className={`nav-link ${isLinkActive('/progress') ? 'active' : ''}`}
-                onClick={handleNavigation}
-              >
-                <i className="fas fa-trophy me-2"></i>
-                <span>Progresso</span>
-              </Link>
-              <Link 
-                to="/competitions" 
-                className={`nav-link ${isLinkActive('/competitions') ? 'active' : ''}`}
-                onClick={handleNavigation}
-              >
-                <i className="fas fa-medal me-2"></i>
-                <span>Competições</span>
-              </Link>
-              <Link 
-                to="/profile" 
-                className={`nav-link ${isLinkActive('/profile') ? 'active' : ''}`}
-                onClick={handleNavigation}
-              >
-                <i className="fas fa-user me-2"></i>
-                <span>Perfil</span>
-              </Link>
+                <i className="fas fa-times"></i>
+              </button>
             </div>
+          </div>
+
+          {/* Navigation Links */}
+          <div className="flex-grow-1 p-3">
+            <nav className="nav flex-column">
+              {menuItems.map((item, index) => (
+                <div key={index}>
+                  {item.submenu ? (
+                    <div>
+                      <div className="nav-link">
+                        <i className={`${item.icon} me-2`}></i>
+                        {item.text}
+                      </div>
+                      <div className="submenu">
+                        {item.submenu.map((subItem) => (
+                          <Link
+                            key={subItem.path}
+                            to={subItem.path}
+                            className={`nav-link ${isLinkActive(subItem.path) ? 'active' : ''}`}
+                            onClick={toggleSidebar}
+                          >
+                            <i className={`${subItem.icon} me-2`}></i>
+                            {subItem.text}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <Link
+                      to={item.path}
+                      className={`nav-link ${isLinkActive(item.path) ? 'active' : ''}`}
+                      onClick={toggleSidebar}
+                    >
+                      <i className={`${item.icon} me-2`}></i>
+                      {item.text}
+                    </Link>
+                  )}
+                </div>
+              ))}
+            </nav>
+          </div>
+
+          {/* Sidebar Footer */}
+          <div className="p-3 border-top border-secondary">
+            <button 
+              onClick={handleLogout}
+              className="btn btn-link text-white-50 w-100 text-start p-0"
+            >
+              <i className="fas fa-sign-out-alt me-2"></i>
+              Sair
+            </button>
           </div>
         </div>
       </nav>
 
       {/* Main Content */}
-      <main className={`main-content bg-dark ${sidebarOpen ? 'shifted' : ''}`}>
-        <div className="container-fluid p-3 p-md-4">
+      <main className={`main-content ${sidebarOpen ? 'shifted' : ''}`}>
+        <div className="container-fluid p-4">
           <Outlet />
         </div>
       </main>
