@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
 import { Container, Row, Col, Card, Form, Button } from 'react-bootstrap';
+import { useWorkout } from '../../hooks/useWorkout';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import { useUser } from '../../hooks/useUser';
 
 const CreateWorkout = () => {
+  const { addWorkout, loading } = useWorkout();
+  const { user } = useUser();
+  const navigate = useNavigate();
+
   const [workoutData, setWorkoutData] = useState({
     name: '',
     date: '',
@@ -10,8 +18,9 @@ const CreateWorkout = () => {
     objective: '',
     description: '',
     duration: '',
-    createdBy: '',
-    status: 'in_progress'
+    createdBy: user?.uid || '',
+    status: 'in_progress',
+    exercises: []
   });
 
   const [currentExercise, setCurrentExercise] = useState({
@@ -28,8 +37,6 @@ const CreateWorkout = () => {
     completed: false,
     timePerSeries: ''
   });
-
-  const [exercises, setExercises] = useState([]);
 
   const handleWorkoutChange = (e) => {
     const { name, value } = e.target;
@@ -48,8 +55,11 @@ const CreateWorkout = () => {
   };
 
   const handleAddExercise = () => {
-    if (currentExercise.name) {
-      setExercises([...exercises, { ...currentExercise, id: Date.now() }]);
+    if (currentExercise.name && currentExercise.series && currentExercise.distance) {
+      setWorkoutData(prev => ({
+        ...prev,
+        exercises: [...prev.exercises, { ...currentExercise, id: Date.now() }]
+      }));
       setCurrentExercise({
         name: '',
         description: '',
@@ -65,310 +75,487 @@ const CreateWorkout = () => {
         completed: false,
         timePerSeries: ''
       });
+      
+      toast.success('Exercício adicionado com sucesso!', {
+        position: "top-right",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "dark",
+      });
+    } else {
+      toast.error('Preencha os campos obrigatórios do exercício', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "dark",
+      });
+    }
+  };
+
+  const handleRemoveExercise = (index) => {
+    setWorkoutData(prev => ({
+      ...prev,
+      exercises: prev.exercises.filter((exercise, i) => i !== index)
+    }));
+    toast.info('Exercício removido', {
+      position: "top-right",
+      autoClose: 2000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      theme: "dark",
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!workoutData.name || !workoutData.date || workoutData.exercises.length === 0) {
+      toast.error('Preencha todos os campos obrigatórios e adicione pelo menos um exercício', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "dark",
+      });
+      return;
+    }
+
+    try {
+      const workoutWithExercises = {
+        ...workoutData,
+        createdAt: new Date().toISOString(),
+      };
+
+      await addWorkout(workoutWithExercises);
+      
+      toast.success('Treino criado com sucesso!', {
+        position: "top-right",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "dark",
+      });
+      
+      navigate('/workouts');
+    } catch (error) {
+      console.error('Erro ao criar treino:', error);
+      toast.error('Erro ao criar treino. Tente novamente.', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "dark",
+      });
     }
   };
 
   return (
-    <Container fluid className="p-4">
-      <h1 className="h3 mb-4 text-white">Criar Treino</h1>
-      
-      {/* Card de Informações do Treino */}
-      <Card className="card-workout mb-4 bg-dark border border-secondary border-opacity-50">
-        <Card.Body className="p-4">
-          <Form>
-            <Row className="mb-4">
-              <Col md={6}>
-                <Form.Group className="mb-3 bg-dark">
-                  <Form.Label className="text-white">Nome do Treino *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    className="bg-dark text-white border-secondary"
-                    name="name"
-                    value={workoutData.name}
-                    onChange={handleWorkoutChange}
-                    placeholder="Ex: Treino de força"
-                    required
-                  />
-                  <Form.Text className="text-light opacity-75">
-                    Digite um nome descritivo para o treino
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="text-white">Esporte *</Form.Label>
-                  <Form.Select
-                    className="bg-dark text-white border-secondary"
-                    name="sport"
-                    value={workoutData.sport}
-                    onChange={handleWorkoutChange}
-                    required
-                  >
-                    <option value="">Selecione um esporte</option>
-                    <option value="natacao">Natação</option>
-                    <option value="musculacao">Musculação</option>
-                    <option value="corrida">Corrida</option>
-                    <option value="ciclismo">Ciclismo</option>
-                    <option value="crossfit">CrossFit</option>
-                    <option value="yoga">Yoga</option>
-                    <option value="pilates">Pilates</option>
-                    <option value="outro">Outro</option>
-                  </Form.Select>
-                  <Form.Text className="text-light opacity-75">
-                    Selecione o esporte relacionado ao treino
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-            </Row>
+    <Container fluid>
+      <Row className="justify-content-center">
+        <Col md={8}>
+          <Card className="bg-dark text-white border-secondary">
+            <Card.Header className="border-secondary">
+              <h4 className="mb-0">Criar Novo Treino</h4>
+            </Card.Header>
+            <Card.Body>
+              <Form onSubmit={handleSubmit}>
+                {/* Informações do Treino */}
+                <Row className="mb-4">
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Nome do Treino*</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="name"
+                        value={workoutData.name}
+                        onChange={handleWorkoutChange}
+                        className="bg-dark text-light border-secondary"
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Data*</Form.Label>
+                      <Form.Control
+                        type="date"
+                        name="date"
+                        value={workoutData.date}
+                        onChange={handleWorkoutChange}
+                        className="bg-dark text-light border-secondary"
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
 
-            <Row className="mb-4">
-              <Col md={4}>
-                <Form.Group className="mb-3 bg-dark">
-                  <Form.Label className="text-white">Nível *</Form.Label>
-                  <Form.Select
-                    className="bg-dark text-white border-secondary"
-                    name="level"
-                    value={workoutData.level}
-                    onChange={handleWorkoutChange}
-                    required
-                  >
-                    <option value="iniciante">Iniciante</option>
-                    <option value="intermediario">Intermediário</option>
-                    <option value="avancado">Avançado</option>
-                  </Form.Select>
-                  <Form.Text className="text-light opacity-75">
-                    Nível de dificuldade do treino
-                  </Form.Text>
-                </Form.Group>
-              </Col>
+                <Row className="mb-4">
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Esporte</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="sport"
+                        value={workoutData.sport}
+                        onChange={handleWorkoutChange}
+                        className="bg-dark text-light border-secondary"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Nível</Form.Label>
+                      <Form.Select
+                        name="level"
+                        value={workoutData.level}
+                        onChange={handleWorkoutChange}
+                        className="bg-dark text-light border-secondary"
+                      >
+                        <option value="iniciante">Iniciante</option>
+                        <option value="intermediario">Intermediário</option>
+                        <option value="avancado">Avançado</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
 
-              <Col md={4}>
-                <Form.Group className="mb-3 bg-dark">
-                  <Form.Label className="text-white">Objetivo *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    className="bg-dark text-white border-secondary"
-                    name="objective"
-                    value={workoutData.objective}
-                    onChange={handleWorkoutChange}
-                    placeholder="Ex: Resistência anaeróbica"
-                    required
-                  />
-                  <Form.Text className="text-light opacity-75">
-                    Objetivo principal do treino
-                  </Form.Text>
-                </Form.Group>
-              </Col>
+                <Row className="mb-4">
+                  <Col md={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Objetivo</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={2}
+                        name="objective"
+                        value={workoutData.objective}
+                        onChange={handleWorkoutChange}
+                        className="bg-dark text-light border-secondary"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
 
-              <Col md={4}>
-                <Form.Group className="mb-3 bg-dark">
-                  <Form.Label className="text-white">Duração (minutos) *</Form.Label>
-                  <Form.Control
-                    type="number"
-                    className="bg-dark text-white border-secondary"
-                    name="duration"
-                    value={workoutData.duration}
-                    onChange={handleWorkoutChange}
-                    placeholder="Ex: 45"
-                    required
-                  />
-                  <Form.Text className="text-light opacity-75">
-                    Tempo estimado do treino
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-            </Row>
-          </Form>
-        </Card.Body>
-      </Card>
+                <Row className="mb-4">
+                  <Col md={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Descrição</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        name="description"
+                        value={workoutData.description}
+                        onChange={handleWorkoutChange}
+                        className="bg-dark text-light border-secondary"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
 
-      {/* Card de Exercícios */}
-      <Card className="card-exercises bg-dark border border-secondary border-opacity-50">
-        <Card.Body className="p-4">
-          <h4 className="text-white mb-4">Adicionar Exercícios</h4>
-          <Form>
-            <Row className="mb-4">
-              <Col md={6}>
-                <Form.Group className="mb-3 bg-dark">
-                  <Form.Label className="text-white">Nome do Exercício *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    className="bg-dark text-white border-secondary"
-                    name="name"
-                    value={currentExercise.name}
-                    onChange={handleExerciseChange}
-                    placeholder="Ex: Braçada de crawl"
-                    required
-                  />
-                  <Form.Text className="text-light opacity-75">
-                    Digite um nome descritivo para o exercício
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-            </Row>
+                <Row className="mb-4">
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Duração (minutos)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        name="duration"
+                        value={workoutData.duration}
+                        onChange={handleWorkoutChange}
+                        className="bg-dark text-light border-secondary"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
 
-            <Row className="mb-4">
-              <Col md={3}>
-                <Form.Group className="mb-3 bg-dark">
-                  <Form.Label className="text-white">Séries *</Form.Label>
-                  <Form.Control
-                    type="number"
-                    className="bg-dark text-white border-secondary"
-                    name="series"
-                    value={currentExercise.series}
-                    onChange={handleExerciseChange}
-                    placeholder="Ex: 6"
-                    required
-                  />
-                  <Form.Text className="text-light opacity-75">
-                    Número de séries
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-              
-              <Col md={3}>
-                <Form.Group className="mb-3 bg-dark">
-                  <Form.Label className="text-white">Distância (m) *</Form.Label>
-                  <Form.Control
-                    type="number"
-                    className="bg-dark text-white border-secondary"
-                    name="distance"
-                    value={currentExercise.distance}
-                    onChange={handleExerciseChange}
-                    placeholder="Ex: 36"
-                    required
-                  />
-                  <Form.Text className="text-light opacity-75">
-                    Distância em metros
-                  </Form.Text>
-                </Form.Group>
-              </Col>
+                {/* Formulário de Exercício */}
+                <Card className="mb-4 bg-dark text-white border-secondary">
+                  <Card.Header className="border-secondary">
+                    <h6 className="mb-0">Adicionar Exercício</h6>
+                  </Card.Header>
+                  <Card.Body>
+                    <Row>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Nome do Exercício*</Form.Label>
+                          <Form.Control
+                            type="text"
+                            name="name"
+                            value={currentExercise.name}
+                            onChange={handleExerciseChange}
+                            className="bg-dark text-white border-secondary"
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Séries*</Form.Label>
+                          <Form.Control
+                            type="number"
+                            name="series"
+                            value={currentExercise.series}
+                            onChange={handleExerciseChange}
+                            className="bg-dark text-white border-secondary"
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
 
-              <Col md={3}>
-                <Form.Group className="mb-3 bg-dark">
-                  <Form.Label className="text-white">Tempo por Série</Form.Label>
-                  <Form.Control
-                    type="text"
-                    className="bg-dark text-white border-secondary"
-                    name="timePerSeries"
-                    value={currentExercise.timePerSeries}
-                    onChange={handleExerciseChange}
-                    placeholder="Ex: 45s"
-                  />
-                  <Form.Text className="text-light opacity-75">
-                    Tempo estimado por série
-                  </Form.Text>
-                </Form.Group>
-              </Col>
+                    <Row>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Repetições</Form.Label>
+                          <Form.Control
+                            type="number"
+                            name="repetitions"
+                            value={currentExercise.repetitions}
+                            onChange={handleExerciseChange}
+                            className="bg-dark text-white border-secondary"
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Distância (metros)*</Form.Label>
+                          <Form.Control
+                            type="number"
+                            name="distance"
+                            value={currentExercise.distance}
+                            onChange={handleExerciseChange}
+                            className="bg-dark text-white border-secondary"
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
 
-              <Col md={3}>
-                <Form.Group className="mb-3 bg-dark">
-                  <Form.Label className="text-white">Tempo de Descanso</Form.Label>
-                  <Form.Control
-                    type="text"
-                    className="bg-dark text-white border-secondary"
-                    name="restTime"
-                    value={currentExercise.restTime}
-                    onChange={handleExerciseChange}
-                    placeholder="Ex: 30s"
-                  />
-                  <Form.Text className="text-light opacity-75">
-                    Tempo de descanso entre séries
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-            </Row>
+                    <Row>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Intensidade</Form.Label>
+                          <Form.Select
+                            name="intensity"
+                            value={currentExercise.intensity}
+                            onChange={handleExerciseChange}
+                            className="bg-dark text-white border-secondary"
+                          >
+                            <option value="leve">Leve</option>
+                            <option value="moderada">Moderada</option>
+                            <option value="intensa">Intensa</option>
+                          </Form.Select>
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Material</Form.Label>
+                          <Form.Control
+                            type="text"
+                            name="material"
+                            value={currentExercise.material}
+                            onChange={handleExerciseChange}
+                            className="bg-dark text-white border-secondary"
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
 
-            <Row className="mb-4">
-              <Col md={4}>
-                <Form.Group className="mb-3 bg-dark">
-                  <Form.Label className="text-white">Intensidade *</Form.Label>
-                  <Form.Select
-                    className="bg-dark text-white border-secondary"
-                    name="intensity"
-                    value={currentExercise.intensity}
-                    onChange={handleExerciseChange}
-                    required
-                  >
-                    <option value="leve">Leve</option>
-                    <option value="moderada">Moderada</option>
-                    <option value="intensa">Intensa</option>
-                  </Form.Select>
-                  <Form.Text className="text-light opacity-75">
-                    Nível de intensidade do exercício
-                  </Form.Text>
-                </Form.Group>
-              </Col>
+                    <Row>
+                      <Col md={12}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Descrição do Exercício</Form.Label>
+                          <Form.Control
+                            as="textarea"
+                            rows={2}
+                            name="description"
+                            value={currentExercise.description}
+                            onChange={handleExerciseChange}
+                            className="bg-dark text-white border-secondary"
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
 
-              <Col md={4}>
-                <Form.Group className="mb-3 bg-dark">
-                  <Form.Label className="text-white">Material Necessário</Form.Label>
-                  <Form.Control
-                    type="text"
-                    className="bg-dark text-white border-secondary"
-                    name="material"
-                    value={currentExercise.material}
-                    onChange={handleExerciseChange}
-                    placeholder="Ex: Pullbuoy, prancha"
-                  />
-                  <Form.Text className="text-light opacity-75">
-                    Equipamentos necessários
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-            </Row>
+                    <Row>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>URL do Vídeo</Form.Label>
+                          <Form.Control
+                            type="url"
+                            name="videoUrl"
+                            value={currentExercise.videoUrl}
+                            onChange={handleExerciseChange}
+                            className="bg-dark text-white border-secondary"
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Tempo de Descanso (segundos)</Form.Label>
+                          <Form.Control
+                            type="number"
+                            name="restTime"
+                            value={currentExercise.restTime}
+                            onChange={handleExerciseChange}
+                            className="bg-dark text-white border-secondary"
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
 
-            <Row className="mb-4">
-              <Col md={12}>
-                <Form.Group className="mb-3 bg-dark">
-                  <Form.Label className="text-white">Observações</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    className="bg-dark text-white border-secondary"
-                    rows={2}
-                    name="notes"
-                    value={currentExercise.notes}
-                    onChange={handleExerciseChange}
-                    placeholder="Ex: Manter ritmo constante, focar na técnica"
-                  />
-                  <Form.Text className="text-light opacity-75">
-                    Observações adicionais
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-            </Row>
+                    <Row>
+                      <Col md={12}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Observações</Form.Label>
+                          <Form.Control
+                            as="textarea"
+                            rows={2}
+                            name="notes"
+                            value={currentExercise.notes}
+                            onChange={handleExerciseChange}
+                            className="bg-dark text-white border-secondary"
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
 
-            <div className="border-top border-secondary pt-4">
-              <Button
-                variant="primary"
-                type="button"
-                className="w-100 py-2"
-                onClick={handleAddExercise}
-              >
-                <i className="bi bi-plus-lg me-2"></i>
-                Adicionar Exercício
-              </Button>
-            </div>
+                    <Button
+                      variant="success"
+                      onClick={handleAddExercise}
+                      className="w-100"
+                    >
+                      Adicionar Exercício
+                    </Button>
+                  </Card.Body>
+                </Card>
 
-            {exercises.length > 0 && (
-              <div className="mt-4">
-                <h5 className="text-white mb-3">Exercícios Adicionados</h5>
-                {exercises.map((exercise, index) => (
-                  <Card key={exercise.id} className="mb-3 bg-dark">
+                {/* Lista de Exercícios */}
+                {workoutData.exercises.length > 0 && (
+                  <Card className="mb-4 bg-dark text-white border-secondary">
+                    <Card.Header className="border-secondary">
+                      <h6 className="mb-0">Exercícios Configurados</h6>
+                    </Card.Header>
                     <Card.Body>
-                      <h6 className="text-white">{exercise.name}</h6>
-                      <p className="text-white-50 mb-2">{exercise.description}</p>
-                      <small className="text-white-50">
-                        {exercise.series} séries | {exercise.distance}m | Intensidade: {exercise.intensity}
-                      </small>
+                      {workoutData.exercises.map((exercise, index) => (
+                        <div
+                          key={index}
+                          className="border border-secondary rounded p-3 mb-3"
+                        >
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <h6 className="mb-0">{exercise.name}</h6>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => handleRemoveExercise(index)}
+                            >
+                              Remover
+                            </Button>
+                          </div>
+                          <Row>
+                            <Col md={4}>
+                              <p className="mb-1">
+                                <strong>Séries:</strong> {exercise.series}
+                              </p>
+                            </Col>
+                            <Col md={4}>
+                              <p className="mb-1">
+                                <strong>Repetições:</strong>{" "}
+                                {exercise.repetitions || "N/A"}
+                              </p>
+                            </Col>
+                            <Col md={4}>
+                              <p className="mb-1">
+                                <strong>Distância:</strong>{" "}
+                                {exercise.distance ? `${exercise.distance}m` : "N/A"}
+                              </p>
+                            </Col>
+                          </Row>
+                          <Row>
+                            <Col md={4}>
+                              <p className="mb-1">
+                                <strong>Intensidade:</strong>{" "}
+                                {exercise.intensity || "N/A"}
+                              </p>
+                            </Col>
+                            <Col md={4}>
+                              <p className="mb-1">
+                                <strong>Material:</strong>{" "}
+                                {exercise.material || "N/A"}
+                              </p>
+                            </Col>
+                            <Col md={4}>
+                              <p className="mb-1">
+                                <strong>Descanso:</strong>{" "}
+                                {exercise.restTime
+                                  ? `${exercise.restTime}s`
+                                  : "N/A"}
+                              </p>
+                            </Col>
+                          </Row>
+                          {exercise.description && (
+                            <p className="mb-1">
+                              <strong>Descrição:</strong> {exercise.description}
+                            </p>
+                          )}
+                          {exercise.notes && (
+                            <p className="mb-1">
+                              <strong>Observações:</strong> {exercise.notes}
+                            </p>
+                          )}
+                          {exercise.videoUrl && (
+                            <p className="mb-0">
+                              <strong>Vídeo:</strong>{" "}
+                              <a
+                                href={exercise.videoUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-info"
+                              >
+                                Link
+                              </a>
+                            </p>
+                          )}
+                        </div>
+                      ))}
                     </Card.Body>
                   </Card>
-                ))}
-              </div>
-            )}
-          </Form>
-        </Card.Body>
-      </Card>
+                )}
+
+                <div className="d-flex justify-content-between">
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate(-1)}
+                  >
+                    Voltar
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleSubmit}
+                  >
+                    Salvar Treino
+                  </Button>
+                </div>
+              </Form>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
     </Container>
   );
 };

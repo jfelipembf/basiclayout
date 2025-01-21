@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../../hooks/useUser';
+import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles.css';
 
 const AdminLayout = () => {
@@ -42,12 +43,13 @@ const AdminLayout = () => {
       ]
     },
     { path: '/students', icon: 'fas fa-users', text: 'Alunos' },
-    { path: '/competitions', icon: 'fas fa-medal', text: 'Competições' }
+    { path: '/competitions', icon: 'fas fa-medal', text: 'Competições' },
+    { path: '/profile', icon: 'fas fa-user', text: 'Perfil' }
   ];
 
   return (
     <div className="min-vh-100 bg-dark">
-      {/* Overlay - apenas para mobile */}
+      {/* Overlay */}
       {sidebarOpen && (
         <div 
           className="position-fixed top-0 start-0 w-100 h-100 bg-black bg-opacity-50 d-lg-none" 
@@ -57,7 +59,7 @@ const AdminLayout = () => {
       )}
 
       {/* Header */}
-      <header className={`header position-fixed w-100 bg-dark ${sidebarOpen ? 'shifted' : ''}`} style={{ zIndex: 1030 }}>
+      <header className={`header position-fixed w-100 bg-dark border-bottom border-secondary ${sidebarOpen ? 'shifted' : ''}`}>
         <div className="container-fluid px-3 py-2">
           <div className="d-flex align-items-center justify-content-between">
             <div className="d-flex align-items-center">
@@ -73,7 +75,7 @@ const AdminLayout = () => {
 
             {/* User Profile */}
             <div className="d-flex align-items-center">
-              <div className="me-3">
+              <div className="me-3 text-end">
                 <div className="text-white">{user?.displayName || user?.email}</div>
                 <small className="text-white-50">Usuário</small>
               </div>
@@ -111,23 +113,27 @@ const AdminLayout = () => {
           </div>
 
           {/* Navigation Links */}
-          <div className="flex-grow-1 p-3">
+          <div className="flex-grow-1 py-2 overflow-auto">
             <nav className="nav flex-column">
               {menuItems.map((item, index) => (
-                <div key={index}>
+                <div key={index} className="mb-1">
                   {item.submenu ? (
-                    <div>
-                      <div className="nav-link">
+                    <div className="nav-item">
+                      <div className="nav-link text-white-50">
                         <i className={`${item.icon} me-2`}></i>
                         {item.text}
                       </div>
                       <div className="submenu">
-                        {item.submenu.map((subItem) => (
+                        {item.submenu.map((subItem, subIndex) => (
                           <Link
-                            key={subItem.path}
+                            key={subIndex}
                             to={subItem.path}
                             className={`nav-link ${isLinkActive(subItem.path) ? 'active' : ''}`}
-                            onClick={toggleSidebar}
+                            onClick={() => {
+                              if (window.innerWidth < 992) {
+                                toggleSidebar();
+                              }
+                            }}
                           >
                             <i className={`${subItem.icon} me-2`}></i>
                             {subItem.text}
@@ -139,7 +145,11 @@ const AdminLayout = () => {
                     <Link
                       to={item.path}
                       className={`nav-link ${isLinkActive(item.path) ? 'active' : ''}`}
-                      onClick={toggleSidebar}
+                      onClick={() => {
+                        if (window.innerWidth < 992) {
+                          toggleSidebar();
+                        }
+                      }}
                     >
                       <i className={`${item.icon} me-2`}></i>
                       {item.text}
@@ -151,7 +161,7 @@ const AdminLayout = () => {
           </div>
 
           {/* Sidebar Footer */}
-          <div className="p-3 border-top border-secondary">
+          <div className="p-3 border-top border-secondary mt-auto">
             <button 
               onClick={handleLogout}
               className="btn btn-link text-white-50 w-100 text-start p-0"

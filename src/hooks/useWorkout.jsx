@@ -15,21 +15,22 @@ export const useWorkout = () => {
 
   // Adiciona um novo treino
   const addWorkout = useCallback(async (workoutData) => {
-    if (!user) {
-      throw new Error('Usuário não autenticado');
-    }
-
     setLoading(true);
     setError(null);
 
     try {
       const timestamp = Timestamp.now();
-      await addDoc(workoutsRef, {
+      const workout = {
         ...workoutData,
-        userId: user.uid,
-        createdAt: timestamp
-      });
+        userId: user?.uid || '',
+        createdAt: timestamp,
+        updatedAt: timestamp
+      };
+
+      const docRef = await addDoc(workoutsRef, workout);
+      return docRef.id;
     } catch (err) {
+      console.error('Error in addWorkout:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -39,119 +40,47 @@ export const useWorkout = () => {
 
   // Busca estatísticas do mês atual e anterior
   const getStats = useCallback(async () => {
-    if (!user) {
-      throw new Error('Usuário não autenticado');
-    }
-
     setLoading(true);
     setError(null);
 
     try {
-      // Calcula as datas do mês atual
-      const now = new Date();
-      const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      const currentDate = new Date();
+      const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const firstDayOfPreviousMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
 
-      // Calcula as datas do mês anterior
-      const startOfPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const endOfPreviousMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-
-      // Busca treinos do mês atual
-      const currentMonthQuery = query(
+      const workoutsQuery = query(
         workoutsRef,
-        where('userId', '==', user.uid),
-        where('createdAt', '>=', Timestamp.fromDate(startOfCurrentMonth)),
-        where('createdAt', '<=', Timestamp.fromDate(endOfCurrentMonth)),
+        where('userId', '==', user?.uid || ''),
+        where('createdAt', '>=', firstDayOfPreviousMonth),
         orderBy('createdAt', 'desc')
       );
 
-      // Busca treinos do mês anterior
-      const previousMonthQuery = query(
-        workoutsRef,
-        where('userId', '==', user.uid),
-        where('createdAt', '>=', Timestamp.fromDate(startOfPreviousMonth)),
-        where('createdAt', '<=', Timestamp.fromDate(endOfPreviousMonth)),
-        orderBy('createdAt', 'desc')
+      const querySnapshot = await getDocs(workoutsQuery);
+      const workouts = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      const currentMonthWorkouts = workouts.filter(workout => 
+        workout.createdAt.toDate() >= firstDayOfMonth
       );
 
-      const [currentMonthSnapshot, previousMonthSnapshot] = await Promise.all([
-        getDocs(currentMonthQuery),
-        getDocs(previousMonthQuery)
-      ]);
-
-      // Processa os treinos do mês atual
-      const currentMonthWorkouts = [];
-      let currentMonthStats = {
-        totalSets: 0,
-        totalReps: 0,
-        totalWeight: 0,
-        workoutCount: 0
-      };
-
-      currentMonthSnapshot.forEach(doc => {
-        const workout = { id: doc.id, ...doc.data() };
-        currentMonthWorkouts.push(workout);
-        
-        currentMonthStats.totalSets += workout.sets || 0;
-        currentMonthStats.totalReps += workout.reps || 0;
-        currentMonthStats.totalWeight += workout.weight || 0;
-        currentMonthStats.workoutCount += 1;
-      });
-
-      // Processa os treinos do mês anterior
-      const previousMonthWorkouts = [];
-      let previousMonthStats = {
-        totalSets: 0,
-        totalReps: 0,
-        totalWeight: 0,
-        workoutCount: 0
-      };
-
-      previousMonthSnapshot.forEach(doc => {
-        const workout = { id: doc.id, ...doc.data() };
-        previousMonthWorkouts.push(workout);
-        
-        previousMonthStats.totalSets += workout.sets || 0;
-        previousMonthStats.totalReps += workout.reps || 0;
-        previousMonthStats.totalWeight += workout.weight || 0;
-        previousMonthStats.workoutCount += 1;
-      });
-
-      // Calcula médias para o mês atual
-      if (currentMonthStats.workoutCount > 0) {
-        currentMonthStats.avgSets = currentMonthStats.totalSets / currentMonthStats.workoutCount;
-        currentMonthStats.avgReps = currentMonthStats.totalReps / currentMonthStats.workoutCount;
-        currentMonthStats.avgWeight = currentMonthStats.totalWeight / currentMonthStats.workoutCount;
-      }
-
-      // Calcula médias para o mês anterior
-      if (previousMonthStats.workoutCount > 0) {
-        previousMonthStats.avgSets = previousMonthStats.totalSets / previousMonthStats.workoutCount;
-        previousMonthStats.avgReps = previousMonthStats.totalReps / previousMonthStats.workoutCount;
-        previousMonthStats.avgWeight = previousMonthStats.totalWeight / previousMonthStats.workoutCount;
-      }
-
-      // Calcula o crescimento
-      const calculateGrowth = (current, previous) => {
-        if (previous === 0) return 0;
-        return ((current - previous) / previous) * 100;
-      };
-
-      const growth = {
-        workouts: calculateGrowth(currentMonthStats.workoutCount, previousMonthStats.workoutCount),
-        weight: calculateGrowth(currentMonthStats.avgWeight, previousMonthStats.avgWeight),
-        volume: calculateGrowth(
-          currentMonthStats.totalSets * currentMonthStats.totalReps,
-          previousMonthStats.totalSets * previousMonthStats.totalReps
-        )
-      };
+      const previousMonthWorkouts = workouts.filter(workout => 
+        workout.createdAt.toDate() >= firstDayOfPreviousMonth && 
+        workout.createdAt.toDate() < firstDayOfMonth
+      );
 
       return {
-        current: currentMonthStats,
-        previous: previousMonthStats,
-        growth,
-        workouts: currentMonthWorkouts,
-        lastWorkout: currentMonthWorkouts[0] || null
+        currentMonth: {
+          total: currentMonthWorkouts.length,
+          completed: currentMonthWorkouts.filter(w => w.status === 'completed').length,
+          inProgress: currentMonthWorkouts.filter(w => w.status === 'in_progress').length
+        },
+        previousMonth: {
+          total: previousMonthWorkouts.length,
+          completed: previousMonthWorkouts.filter(w => w.status === 'completed').length,
+          inProgress: previousMonthWorkouts.filter(w => w.status === 'in_progress').length
+        }
       };
     } catch (err) {
       setError(err.message);
@@ -163,28 +92,21 @@ export const useWorkout = () => {
 
   // Busca todos os treinos do usuário
   const getWorkouts = useCallback(async () => {
-    if (!user) {
-      throw new Error('Usuário não autenticado');
-    }
-
     setLoading(true);
     setError(null);
 
     try {
       const workoutsQuery = query(
         workoutsRef,
-        where('userId', '==', user.uid),
+        where('userId', '==', user?.uid || ''),
         orderBy('createdAt', 'desc')
       );
 
       const querySnapshot = await getDocs(workoutsQuery);
-      const workouts = [];
-
-      querySnapshot.forEach(doc => {
-        workouts.push({ id: doc.id, ...doc.data() });
-      });
-
-      return workouts;
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
     } catch (err) {
       setError(err.message);
       throw err;

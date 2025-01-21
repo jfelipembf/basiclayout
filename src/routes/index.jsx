@@ -13,6 +13,7 @@ const AppRoutes = () => {
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
+        
           <Route path="/" element={<Dashboard />} />
           <Route path="/workouts" element={<Workouts />} />
           <Route path="/workouts/create" element={<CreateWorkout />} />

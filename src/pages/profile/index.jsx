@@ -1,442 +1,516 @@
-import React, { useState } from 'react';
-import { Card, Form, Row, Col, Button, Modal, Nav, Dropdown, InputGroup } from 'react-bootstrap';
-import { useAuth } from '../../contexts/FirebaseContext';
+import React, { useState, useEffect, memo } from 'react';
+import { Card, Form, Row, Col, Button } from 'react-bootstrap';
+import { useUser } from '../../hooks/useUser';
 import { toast } from 'react-toastify';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
+// Componente do formulário de edição
+const ProfileForm = memo(({ formData, onInputChange, onSubmit, onCancel, onPhotoUpload, uploading }) => (
+  <Form onSubmit={onSubmit} className="p-4">
+    {/* Foto do Perfil */}
+    <div className="text-center mb-4">
+      <div className="position-relative d-inline-block">
+        <div 
+          className="rounded-circle overflow-hidden mb-3"
+          style={{
+            width: '150px',
+            height: '150px',
+            border: '3px solid var(--bs-primary)',
+            backgroundColor: '#2a2a2a'
+          }}
+        >
+          {formData.photoURL ? (
+            <img
+              src={formData.photoURL}
+              alt="Profile"
+              className="w-100 h-100"
+              style={{ objectFit: 'cover' }}
+            />
+          ) : (
+            <div className="w-100 h-100 d-flex align-items-center justify-content-center">
+              <i className="fas fa-user fa-3x text-white-50"></i>
+            </div>
+          )}
+        </div>
+        <div>
+          <Button
+            variant="outline-light"
+            size="sm"
+            onClick={() => document.getElementById('photoUpload').click()}
+            disabled={uploading}
+          >
+            <i className="fas fa-camera me-2"></i>
+            {uploading ? 'Enviando...' : 'Alterar foto'}
+          </Button>
+          <Form.Control
+            type="file"
+            id="photoUpload"
+            className="d-none"
+            accept="image/*"
+            onChange={onPhotoUpload}
+            disabled={uploading}
+          />
+        </div>
+      </div>
+    </div>
+
+    {/* Dados Pessoais */}
+    <div className="mb-4">
+      <h6 className="text-white-50 border-bottom border-secondary pb-2 mb-3">
+        <i className="fas fa-info-circle me-2"></i>
+        Dados Pessoais
+      </h6>
+      <Row>
+        <Col md={6} className="mb-3">
+          <Form.Group>
+            <Form.Label className="text-white-50">Nome</Form.Label>
+            <Form.Control
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={onInputChange}
+              className="bg-dark text-white border-secondary"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={6} className="mb-3">
+          <Form.Group>
+            <Form.Label className="text-white-50">Email</Form.Label>
+            <Form.Control
+              type="email"
+              name="email"
+              value={formData.email}
+              disabled
+              className="bg-dark text-white border-secondary"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={6} className="mb-3">
+          <Form.Group>
+            <Form.Label className="text-white-50">Telefone</Form.Label>
+            <Form.Control
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={onInputChange}
+              className="bg-dark text-white border-secondary"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={6} className="mb-3">
+          <Form.Group>
+            <Form.Label className="text-white-50">Gênero</Form.Label>
+            <Form.Select
+              name="gender"
+              value={formData.gender}
+              onChange={onInputChange}
+              className="bg-dark text-white border-secondary"
+            >
+              <option value="">Selecione</option>
+              <option value="male">Masculino</option>
+              <option value="female">Feminino</option>
+              <option value="other">Outro</option>
+            </Form.Select>
+          </Form.Group>
+        </Col>
+      </Row>
+    </div>
+
+    {/* Endereço */}
+    <div className="mb-4">
+      <h6 className="text-white-50 border-bottom border-secondary pb-2 mb-3">
+        <i className="fas fa-map-marker-alt me-2"></i>
+        Endereço
+      </h6>
+      <Row>
+        <Col md={6} className="mb-3">
+          <Form.Group>
+            <Form.Label className="text-white-50">Rua</Form.Label>
+            <Form.Control
+              type="text"
+              name="address.street"
+              value={formData.address.street}
+              onChange={onInputChange}
+              className="bg-dark text-white border-secondary"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={2} className="mb-3">
+          <Form.Group>
+            <Form.Label className="text-white-50">Número</Form.Label>
+            <Form.Control
+              type="text"
+              name="address.number"
+              value={formData.address.number}
+              onChange={onInputChange}
+              className="bg-dark text-white border-secondary"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={4} className="mb-3">
+          <Form.Group>
+            <Form.Label className="text-white-50">Complemento</Form.Label>
+            <Form.Control
+              type="text"
+              name="address.complement"
+              value={formData.address.complement}
+              onChange={onInputChange}
+              className="bg-dark text-white border-secondary"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={4} className="mb-3">
+          <Form.Group>
+            <Form.Label className="text-white-50">Bairro</Form.Label>
+            <Form.Control
+              type="text"
+              name="address.neighborhood"
+              value={formData.address.neighborhood}
+              onChange={onInputChange}
+              className="bg-dark text-white border-secondary"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={4} className="mb-3">
+          <Form.Group>
+            <Form.Label className="text-white-50">Cidade</Form.Label>
+            <Form.Control
+              type="text"
+              name="address.city"
+              value={formData.address.city}
+              onChange={onInputChange}
+              className="bg-dark text-white border-secondary"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={2} className="mb-3">
+          <Form.Group>
+            <Form.Label className="text-white-50">Estado</Form.Label>
+            <Form.Control
+              type="text"
+              name="address.state"
+              value={formData.address.state}
+              onChange={onInputChange}
+              className="bg-dark text-white border-secondary"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={2} className="mb-3">
+          <Form.Group>
+            <Form.Label className="text-white-50">CEP</Form.Label>
+            <Form.Control
+              type="text"
+              name="address.zipCode"
+              value={formData.address.zipCode}
+              onChange={onInputChange}
+              className="bg-dark text-white border-secondary"
+            />
+          </Form.Group>
+        </Col>
+      </Row>
+    </div>
+
+    {/* Botões */}
+    <div className="d-flex justify-content-end gap-2 pt-3 border-top border-secondary">
+      <Button
+        variant="outline-light"
+        onClick={onCancel}
+        type="button"
+      >
+        Cancelar
+      </Button>
+      <Button variant="primary" type="submit" style={{ width: '150px' }}>
+        Salvar 
+      </Button>
+    </div>
+  </Form>
+));
+
+// Componente principal do Profile
 const Profile = () => {
-  const { currentUser: user } = useAuth();
+  const { user, updateProfile, updateAddress } = useUser();
   const [isEditing, setIsEditing] = useState(false);
-  const [showNewMarkModal, setShowNewMarkModal] = useState(false);
-  const [markType, setMarkType] = useState('competition');
-  const [markData, setMarkData] = useState({
-    type: 'competition',
-    category: '',
-    time: '',
-    distance: ''
+  const [uploading, setUploading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    gender: '',
+    photoURL: '',
+    address: {
+      street: '',
+      number: '',
+      complement: '',
+      neighborhood: '',
+      city: '',
+      state: '',
+      zipCode: '',
+    },
   });
 
-  const [profileData, setProfileData] = useState({
-    name: user?.displayName || '',
-    email: user?.email || '',
-    phone: '(11) 99999-9999',
-    birthDate: '1990-01-01',
-    gender: 'Masculino',
-    street: 'Rua Exemplo',
-    number: '123',
-    complement: 'Apto 456',
-    neighborhood: 'Centro',
-    city: 'São Paulo',
-    state: 'SP',
-    zipCode: '01234-567',
-    profileImage: user?.photoURL || null
-  });
-
-  const handleCloseModal = () => {
-    setShowNewMarkModal(false);
-    setMarkData({
-      type: 'competition',
-      category: '',
-      time: '',
-      distance: ''
-    });
-  };
-
-  const handleMarkInputChange = (e) => {
-    const { name, value } = e.target;
-    setMarkData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleMarkTypeChange = (type) => {
-    setMarkType(type);
-    setMarkData(prev => ({
-      ...prev,
-      type: type
-    }));
-  };
-
-  const handleSaveMark = () => {
-    // Aqui você pode adicionar a lógica para salvar a marca
-    console.log('Marca salva:', markData);
-    toast.success('Marca adicionada com sucesso!');
-    handleCloseModal();
-  };
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || user.displayName || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        gender: user.gender || '',
+        photoURL: user.photoURL || '',
+        address: {
+          street: user.address?.street || '',
+          number: user.address?.number || '',
+          complement: user.address?.complement || '',
+          neighborhood: user.address?.neighborhood || '',
+          city: user.address?.city || '',
+          state: user.address?.state || '',
+          zipCode: user.address?.zipCode || '',
+        },
+      });
+    }
+  }, [user]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setProfileData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileData(prev => ({
-          ...prev,
-          profileImage: reader.result
-        }));
-      };
-      reader.readAsDataURL(file);
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setFormData(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
     }
   };
 
-  const handleSave = () => {
-    toast.success('Perfil atualizado com sucesso!');
-    setIsEditing(false);
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const storage = getStorage();
+      const photoRef = ref(storage, `profile-photos/${user.uid}/${file.name}`);
+      
+      await uploadBytes(photoRef, file);
+      const photoURL = await getDownloadURL(photoRef);
+      
+      await updateProfile({ photoURL });
+      setFormData(prev => ({ ...prev, photoURL }));
+      toast.success('Foto atualizada com sucesso!', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "dark",
+      });
+    } catch (error) {
+      console.error('Erro ao fazer upload da foto:', error);
+      toast.error('Erro ao atualizar foto', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "dark",
+      });
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const renderField = (label, value, name, type = 'text') => {
-    return (
-      <Form.Group className="mb-0">
-        <Form.Label className="text-white-50 small mb-1">{label}</Form.Label>
-        {isEditing ? (
-          type === 'select' ? (
-            <Form.Select
-              className="bg-dark text-white border-secondary"
-              name={name}
-              value={value}
-              onChange={handleInputChange}
-            >
-              <option value="Masculino">Masculino</option>
-              <option value="Feminino">Feminino</option>
-              <option value="Outro">Outro</option>
-            </Form.Select>
-          ) : (
-            <Form.Control
-              type={type}
-              className="bg-dark text-white border-secondary"
-              name={name}
-              value={value}
-              onChange={handleInputChange}
-            />
-          )
-        ) : (
-          <p className="text-white mb-0">{value}</p>
-        )}
-      </Form.Group>
-    );
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const { address, ...profileData } = formData;
+      
+      await updateProfile(profileData);
+      await updateAddress(address);
+      
+      toast.success('Perfil atualizado com sucesso!', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "dark",
+      });
+      setIsEditing(false);
+    } catch (error) {
+      toast.error('Erro ao atualizar perfil: ' + error.message, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "dark",
+      });
+    }
   };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    if (user) {
+      setFormData({
+        name: user.name || user.displayName || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        gender: user.gender || '',
+        photoURL: user.photoURL || '',
+        address: {
+          street: user.address?.street || '',
+          number: user.address?.number || '',
+          complement: user.address?.complement || '',
+          neighborhood: user.address?.neighborhood || '',
+          city: user.address?.city || '',
+          state: user.address?.state || '',
+          zipCode: user.address?.zipCode || '',
+        },
+      });
+    }
+  };
+
+  // Modo de Visualização
+  const ViewMode = () => (
+    <div className="p-4">
+      {/* Cabeçalho com Foto */}
+      <div className="text-center mb-4">
+        <div className="position-relative d-inline-block mb-3">
+          <div 
+            className="rounded-circle overflow-hidden"
+            style={{
+              width: '150px',
+              height: '150px',
+              border: '3px solid var(--bs-primary)',
+              backgroundColor: '#2a2a2a'
+            }}
+          >
+            {formData.photoURL ? (
+              <img
+                src={formData.photoURL}
+                alt="Profile"
+                className="w-100 h-100"
+                style={{ objectFit: 'cover' }}
+              />
+            ) : (
+              <div className="w-100 h-100 d-flex align-items-center justify-content-center">
+                <i className="fas fa-user fa-3x text-white-50"></i>
+              </div>
+            )}
+          </div>
+        </div>
+        <h4 className="text-white mb-1">{formData.name || 'Sem nome'}</h4>
+        <p className="text-white-50 mb-0">{formData.email}</p>
+      </div>
+
+      {/* Dados Pessoais */}
+      <div className="mb-4">
+        <h6 className="text-white-50 border-bottom border-secondary pb-2 mb-3">
+          <i className="fas fa-info-circle me-2"></i>
+          Dados Pessoais
+        </h6>
+        <Row className="g-3">
+          <Col md={6}>
+            <div className="text-white-50 small mb-1">Telefone</div>
+            <div className="text-white">{formData.phone || 'Não informado'}</div>
+          </Col>
+          <Col md={6}>
+            <div className="text-white-50 small mb-1">Gênero</div>
+            <div className="text-white">
+              {formData.gender === 'male' ? 'Masculino' : 
+               formData.gender === 'female' ? 'Feminino' : 
+               formData.gender === 'other' ? 'Outro' : 'Não informado'}
+            </div>
+          </Col>
+        </Row>
+      </div>
+
+      {/* Endereço */}
+      <div>
+        <h6 className="text-white-50 border-bottom border-secondary pb-2 mb-3">
+          <i className="fas fa-map-marker-alt me-2"></i>
+          Endereço
+        </h6>
+        <Row className="g-3">
+          <Col xs={12}>
+            <div className="text-white">
+              {formData.address.street && formData.address.number ? 
+                `${formData.address.street}, ${formData.address.number}` : 
+                'Endereço não informado'}
+              {formData.address.complement && ` - ${formData.address.complement}`}
+            </div>
+          </Col>
+          {(formData.address.neighborhood || formData.address.city || formData.address.state) && (
+            <Col xs={12}>
+              <div className="text-white">
+                {[
+                  formData.address.neighborhood,
+                  formData.address.city,
+                  formData.address.state
+                ].filter(Boolean).join(', ')}
+              </div>
+            </Col>
+          )}
+          {formData.address.zipCode && (
+            <Col xs={12}>
+              <div className="text-white">CEP: {formData.address.zipCode}</div>
+            </Col>
+          )}
+        </Row>
+      </div>
+    </div>
+  );
 
   return (
     <div className="container-fluid p-4">
-      <div className="d-flex justify-content-end mb-4">
-        <Button 
-          variant="primary"
-          size="lg"
-          onClick={() => setShowNewMarkModal(true)}
-        >
-          <i className="fas fa-plus-circle me-2"></i>
-          Nova marca
-        </Button>
-      </div>
-
-      <Row className="g-4">
-        {/* Card Principal */}
-        <Col xs={12}>
-          <div className="card bg-dark border border-secondary border-opacity-50">
-            <div className="card-body p-4">
-              <div className="d-flex justify-content-between align-items-center mb-4">
-                <h5 className="card-subtitle text-white-50 fw-medium mb-0">
-                  <i className="fas fa-user-circle me-2"></i>
-                  Perfil do Usuário
-                </h5>
-                <Button 
-                  variant="link" 
-                  className="text-white p-0"
-                  onClick={() => setIsEditing(!isEditing)}
-                >
-                  <i className={`fas fa-${isEditing ? 'times' : 'edit'}`}></i>
-                </Button>
-              </div>
-
-              <Row>
-                {/* Coluna da Foto */}
-                <Col md={3} className="text-center border-end border-secondary">
-                  <div className="position-relative d-inline-block">
-                    <div 
-                      className="position-relative d-inline-flex align-items-center justify-content-center mb-3"
-                      style={{
-                        width: '180px',
-                        height: '180px',
-                        borderRadius: '50%',
-                        overflow: 'hidden',
-                        border: '2px solid var(--bs-secondary)',
-                        backgroundColor: '#2a2a2a'
-                      }}
-                    >
-                      <img
-                        src={profileData.profileImage || 'https://via.placeholder.com/150'}
-                        alt="Profile"
-                        style={{ 
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover'
-                        }}
-                      />
-                    </div>
-                    {isEditing && (
-                      <Form.Group className="mb-3">
-                        <Form.Label className="d-flex flex-column align-items-center gap-2">
-                          <Button
-                            variant="outline-primary"
-                            className="px-4"
-                            onClick={() => document.getElementById('photoUpload').click()}
-                          >
-                            <i className="fas fa-camera me-2"></i>
-                            Alterar foto
-                          </Button>
-                          <Form.Control
-                            type="file"
-                            id="photoUpload"
-                            className="d-none"
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                          />
-                          <small className="text-white-50">
-                            JPG ou PNG, máximo 5MB
-                          </small>
-                        </Form.Label>
-                      </Form.Group>
-                    )}
-                  </div>
-                  {!isEditing && (
-                    <div className="mt-3">
-                      <h4 className="text-white mb-1">{profileData.name}</h4>
-                      <p className="text-white-50 mb-0">{profileData.email}</p>
-                    </div>
-                  )}
-                </Col>
-
-                {/* Coluna dos Dados */}
-                <Col md={9}>
-                  <Row className="g-4">
-                    <Col xs={12}>
-                    
-                      <Row className="g-3">
-                        <Col md={6}>{renderField('Nome', profileData.name, 'name')}</Col>
-                        <Col md={6}>{renderField('Email', profileData.email, 'email', 'email')}</Col>
-                        <Col md={4}>{renderField('Telefone', profileData.phone, 'phone', 'tel')}</Col>
-                        <Col md={4}>{renderField('Data de Nascimento', profileData.birthDate, 'birthDate', 'date')}</Col>
-                        <Col md={4}>{renderField('Gênero', profileData.gender, 'gender', 'select')}</Col>
-                      </Row>
-                    </Col>
-
-                    <Col xs={12}>
-                      <h6 className="text-white-50 mb-3">
-                        <i className="fas fa-map-marker-alt me-2"></i>
-                        Endereço
-                      </h6>
-                      <Row className="g-3">
-                        <Col md={6}>{renderField('Rua', profileData.street, 'street')}</Col>
-                        <Col md={2}>{renderField('Número', profileData.number, 'number')}</Col>
-                        <Col md={4}>{renderField('Complemento', profileData.complement, 'complement')}</Col>
-                        <Col md={4}>{renderField('Bairro', profileData.neighborhood, 'neighborhood')}</Col>
-                        <Col md={4}>{renderField('Cidade', profileData.city, 'city')}</Col>
-                        <Col md={2}>{renderField('Estado', profileData.state, 'state')}</Col>
-                        <Col md={2}>{renderField('CEP', profileData.zipCode, 'zipCode')}</Col>
-                      </Row>
-                    </Col>
-                  </Row>
-                </Col>
-              </Row>
-
-              {/* Botões de Ação */}
-              {isEditing && (
-                <div className="d-flex justify-content-end gap-2 mt-4 pt-4 border-top border-secondary">
-                  <Button 
-                    variant="outline-light"
-                    className="px-4"
-                    onClick={() => setIsEditing(false)}
-                  >
-                    <i className="fas fa-times me-2"></i>
-                    Cancelar
-                  </Button>
-                  <Button 
-                    variant="primary"
-                    className="px-4"
-                    onClick={handleSave}
-                  >
-                    <i className="fas fa-check me-2"></i>
-                    Salvar Alterações
-                  </Button>
-                </div>
-              )}
-            </div>
+      <Card className="bg-dark border-secondary">
+        <Card.Body className="p-0">
+          {/* Header */}
+          <div className="d-flex justify-content-between align-items-center p-4 border-bottom border-secondary">
+            <h5 className="card-title text-white mb-0">
+              <i className="fas fa-user-circle me-2"></i>
+              Perfil do Usuário
+            </h5>
+            <Button
+              variant="link"
+              className="text-white p-0"
+              onClick={() => setIsEditing(!isEditing)}
+            >
+              <i className={`fas fa-${isEditing ? 'times' : 'edit'} me-2`}></i>
+              {isEditing ? 'Cancelar Edição' : 'Editar Perfil'}
+            </Button>
           </div>
-        </Col>
-      </Row>
 
-      {/* Modal Nova Marca */}
-      <Modal
-        show={showNewMarkModal}
-        onHide={handleCloseModal}
-        centered
-        size="lg"
-        backdrop="static"
-        className="modal-dark"
-      >
-        <Modal.Header className="bg-dark border-secondary">
-          <Modal.Title className="text-white">
-            <i className="fas fa-trophy me-2"></i>
-            Nova marca
-          </Modal.Title>
-          <Button 
-            variant="link" 
-            className="text-white p-0 border-0 ms-auto"
-            onClick={handleCloseModal}
-          >
-            <i className="fas fa-times"></i>
-          </Button>
-        </Modal.Header>
-        <Modal.Body className="bg-dark border-secondary p-4">
-          <Form>
-            {/* Dropdown de Categorias */}
-            <Form.Group className="mb-4">
-              <Form.Label className="text-white-50 mb-2">
-                <i className="fas fa-layer-group me-2"></i>
-                Categoria
-              </Form.Label>
-              <Dropdown className="w-100">
-                <div className="position-relative">
-                  <Dropdown.Toggle 
-                    variant="outline-secondary" 
-                    className="w-100 text-start bg-dark text-white border-secondary form-control-lg d-flex align-items-center justify-content-between"
-                  >
-                    {markData.category || 'Selecione uma categoria'}
-                  </Dropdown.Toggle>
-                </div>
-                <Dropdown.Menu className="w-100 bg-dark border-secondary">
-                  <Dropdown.Item 
-                    className="text-white py-2 px-3" 
-                    onClick={() => handleMarkInputChange({ target: { name: 'category', value: '50m Livre' } })}
-                  >
-                    <i className="fas fa-swimming-pool me-2"></i>
-                    50m Livre
-                  </Dropdown.Item>
-                  <Dropdown.Item 
-                    className="text-white py-2 px-3"
-                    onClick={() => handleMarkInputChange({ target: { name: 'category', value: '100m Livre' } })}
-                  >
-                    <i className="fas fa-swimming-pool me-2"></i>
-                    100m Livre
-                  </Dropdown.Item>
-                  <Dropdown.Item 
-                    className="text-white py-2 px-3"
-                    onClick={() => handleMarkInputChange({ target: { name: 'category', value: '200m Livre' } })}
-                  >
-                    <i className="fas fa-swimming-pool me-2"></i>
-                    200m Livre
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown>
-            </Form.Group>
-
-            {/* Pills de Tipo */}
-            <Form.Group className="mb-4">
-              <Form.Label className="text-white-50 mb-2">
-                <i className="fas fa-tag me-2"></i>
-                Tipo da Marca
-              </Form.Label>
-              <Nav 
-                variant="pills" 
-                className="nav-fill"
-                activeKey={markType}
-                onSelect={handleMarkTypeChange}
-              >
-                <Nav.Item>
-                  <Nav.Link 
-                    eventKey="competition"
-                    className={`rounded-3 ${markType === 'competition' ? 'active bg-primary' : 'text-white'}`}
-                  >
-                    <i className="fas fa-medal me-2"></i>
-                    Competição
-                  </Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link 
-                    eventKey="free"
-                    className={`rounded-3 ${markType === 'free' ? 'active bg-primary' : 'text-white'}`}
-                  >
-                    <i className="fas fa-stopwatch me-2"></i>
-                    Marca Livre
-                  </Nav.Link>
-                </Nav.Item>
-              </Nav>
-            </Form.Group>
-
-            <Row className="g-4">
-              {/* Campo de Tempo */}
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label className="text-white-50 mb-2">
-                    <i className="fas fa-clock me-2"></i>
-                    Tempo
-                  </Form.Label>
-                  <Form.Control
-                    type="time"
-                    step="0.01"
-                    className="bg-dark text-white border-secondary form-control-lg"
-                    name="time"
-                    value={markData.time}
-                    onChange={handleMarkInputChange}
-                  />
-                  <Form.Text className="text-white-50">
-                    Formato: minutos:segundos.centésimos
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-
-              {/* Campo de Distância */}
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label className="text-white-50 mb-2">
-                    <i className="fas fa-ruler-horizontal me-2"></i>
-                    Distância
-                  </Form.Label>
-                  <InputGroup>
-                    <Form.Control
-                      type="number"
-                      className="bg-dark text-white border-secondary form-control-lg"
-                      name="distance"
-                      value={markData.distance}
-                      onChange={handleMarkInputChange}
-                      placeholder="Ex: 50"
-                    />
-                    <InputGroup.Text className="bg-dark text-white-50 border-secondary">
-                      metros
-                    </InputGroup.Text>
-                  </InputGroup>
-                </Form.Group>
-              </Col>
-            </Row>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer className="bg-dark border-secondary p-3">
-          <Button 
-            variant="outline-light" 
-            className="px-4 py-2"
-            onClick={handleCloseModal}
-          >
-            <i className="fas fa-times me-2"></i>
-            Cancelar
-          </Button>
-          <Button 
-            variant="primary" 
-            className="px-4 py-2"
-            onClick={handleSaveMark}
-          >
-            <i className="fas fa-check me-2"></i>
-            Salvar Marca
-          </Button>
-        </Modal.Footer>
-      </Modal>
+          {/* Conteúdo */}
+          {isEditing ? (
+            <ProfileForm
+              formData={formData}
+              onInputChange={handleInputChange}
+              onSubmit={handleSubmit}
+              onCancel={handleCancel}
+              onPhotoUpload={handlePhotoUpload}
+              uploading={uploading}
+            />
+          ) : (
+            <ViewMode />
+          )}
+        </Card.Body>
+      </Card>
     </div>
   );
 };

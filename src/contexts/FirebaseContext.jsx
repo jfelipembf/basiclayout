@@ -47,7 +47,7 @@ export const AuthContext = createContext(null);
 export const useFirebase = () => {
   const context = useContext(FirebaseContext);
   if (!context) {
-    throw new Error('useFirebase deve ser usado dentro de um FirebaseProvider.');
+    throw new Error('useFirebase deve ser usado dentro de um FirebaseProvider');
   }
   return context;
 };
@@ -56,7 +56,7 @@ export const useFirebase = () => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth deve ser usado dentro de um FirebaseProvider.');
+    throw new Error('useAuth deve ser usado dentro de um FirebaseProvider');
   }
   return context;
 };
@@ -76,132 +76,48 @@ export const FirebaseProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      return await signInWithEmailAndPassword(auth, email, password);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      return result;
     } catch (error) {
-      console.error('Erro ao fazer login:', error.message);
+      console.error('Erro ao fazer login:', error);
       throw error;
     }
   };
 
   const logout = async () => {
     try {
-      return await signOut(auth);
+      await signOut(auth);
     } catch (error) {
-      console.error('Erro ao fazer logout:', error.message);
+      console.error('Erro ao fazer logout:', error);
       throw error;
     }
   };
 
   const register = async (email, password) => {
     try {
-      return await createUserWithEmailAndPassword(auth, email, password);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      return result;
     } catch (error) {
-      console.error('Erro ao registrar usuário:', error.message);
+      console.error('Erro ao registrar usuário:', error);
       throw error;
     }
   };
 
-  const addUser = async (userData) => {
-    try {
-      const userRef = doc(collection(db, 'users'));
-      await setDoc(userRef, { ...userData, createdAt: serverTimestamp() });
-      return userRef;
-    } catch (error) {
-      console.error('Erro ao adicionar usuário:', error.message);
-      throw error;
-    }
-  };
-
-  const updateUser = async (userId, userData) => {
-    try {
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, userData);
-    } catch (error) {
-      console.error('Erro ao atualizar usuário:', error.message);
-      throw error;
-    }
-  };
-
-  const deleteUser = async (userId) => {
-    try {
-      const userRef = doc(db, 'users', userId);
-      await deleteDoc(userRef);
-    } catch (error) {
-      console.error('Erro ao deletar usuário:', error.message);
-      throw error;
-    }
-  };
-
-  const addRecord = async (userId, recordData) => {
-    try {
-      const recordRef = doc(collection(db, `users/${userId}/records`));
-      await setDoc(recordRef, { ...recordData, createdAt: serverTimestamp() });
-      return recordRef;
-    } catch (error) {
-      console.error('Erro ao adicionar registro:', error.message);
-      throw error;
-    }
-  };
-
-  const listRecords = async (userId) => {
-    try {
-      const recordsSnapshot = await getDocs(collection(db, `users/${userId}/records`));
-      return recordsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    } catch (error) {
-      console.error('Erro ao listar registros:', error.message);
-      throw error;
-    }
-  };
-
-  const updateRecord = async (userId, recordId, recordData) => {
-    try {
-      const recordRef = doc(db, `users/${userId}/records`, recordId);
-      await updateDoc(recordRef, recordData);
-    } catch (error) {
-      console.error('Erro ao atualizar registro:', error.message);
-      throw error;
-    }
-  };
-
-  const deleteRecord = async (userId, recordId) => {
-    try {
-      const recordRef = doc(db, `users/${userId}/records`, recordId);
-      await deleteDoc(recordRef);
-    } catch (error) {
-      console.error('Erro ao deletar registro:', error.message);
-      throw error;
-    }
-  };
-
-  const authValue = {
+  const value = {
+    auth,
+    db,
+    storage,
     currentUser,
-    isLoggedIn: !!currentUser,
     loading,
     login,
     logout,
-    register,
+    register
   };
-
-  const firebaseValue = {
-    db,
-    storage,
-    addUser,
-    updateUser,
-    deleteUser,
-    addRecord,
-    listRecords,
-    updateRecord,
-    deleteRecord,
-  };
-
-  if (loading) {
-    return <div>Carregando...</div>;
-  }
 
   return (
-    <FirebaseContext.Provider value={firebaseValue}>
-      <AuthContext.Provider value={authValue}>
-        {children}
+    <FirebaseContext.Provider value={value}>
+      <AuthContext.Provider value={{ currentUser, loading }}>
+        {!loading && children}
       </AuthContext.Provider>
     </FirebaseContext.Provider>
   );
