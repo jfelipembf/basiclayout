@@ -98,6 +98,22 @@ const AdminLayout = () => {
                 <span>Treinos</span>
               </Link>
               <Link 
+                to="/progress" 
+                className={`nav-link ${isLinkActive('/progress') ? 'active' : ''}`}
+                onClick={handleNavigation}
+              >
+                <i className="fas fa-trophy me-2"></i>
+                <span>Progresso</span>
+              </Link>
+              <Link 
+                to="/competitions" 
+                className={`nav-link ${isLinkActive('/competitions') ? 'active' : ''}`}
+                onClick={handleNavigation}
+              >
+                <i className="fas fa-medal me-2"></i>
+                <span>Competições</span>
+              </Link>
+              <Link 
                 to="/profile" 
                 className={`nav-link ${isLinkActive('/profile') ? 'active' : ''}`}
                 onClick={handleNavigation}

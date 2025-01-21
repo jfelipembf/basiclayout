@@ -4,7 +4,7 @@ const LevelCard = ({ currentPoints, currentLevel, nextLevel, pointsToNextLevel }
   const progressPercentage = (currentPoints / (currentPoints + pointsToNextLevel)) * 100;
 
   return (
-    <div className="card bg-dark border border-secondary border-opacity-50">
+    <div className="bg-dark">
       <div className="card-body p-4">
         <div className="row align-items-center">
           <div className="col-md-3">

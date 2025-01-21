@@ -38,7 +38,7 @@ const AchievementsCard = ({ achievements }) => {
   const nextAchievements = achievements.filter(a => !a.isCompleted).slice(0, 3);
 
   return (
-    <div className="card bg-dark border border-secondary border-opacity-50">
+    <div className="bg-dark">
       <div className="card-body p-0">
         {/* Header */}
         <div className="d-flex justify-content-between align-items-center p-4 border-bottom border-secondary border-opacity-25">

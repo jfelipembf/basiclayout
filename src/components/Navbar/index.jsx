@@ -1,6 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../../hooks/useUser';
+import { Link } from 'react-router-dom';
+import { Nav } from 'react-bootstrap';
 
 const Navbar = ({ onCloseSidebar }) => {
   const navigate = useNavigate();
@@ -24,6 +26,20 @@ const Navbar = ({ onCloseSidebar }) => {
             <small className="text-white-50">Usuário</small>
           </div>
         </div>
+        <Nav className="me-auto">
+          <Nav.Item>
+            <Link to="/dashboard" className="nav-link text-white">
+              <i className="fas fa-chart-line me-2"></i>
+              Dashboard
+            </Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Link to="/progress" className="nav-link text-white">
+              <i className="fas fa-trophy me-2"></i>
+              Progresso
+            </Link>
+          </Nav.Item>
+        </Nav>
         <button 
           onClick={handleLogout}
           className="btn btn-link text-white-50 p-0"

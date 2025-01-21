@@ -36,11 +36,11 @@ const firebaseConfig = {
 // Inicialização do Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
-const db = getFirestore(app);
+export const db = getFirestore(app);
 const storage = getStorage(app);
 
 // Criação do contexto
-export const FirebaseContext = createContext(null);
+export const FirebaseContext = createContext();
 export const AuthContext = createContext(null);
 
 // Hook personalizado para acessar o contexto

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import StatCard from '../../components/StatCard';
 import LevelCard from '../../components/LevelCard';
 import AchievementsCard from '../../components/AchievementsCard';
+import { Row, Col, Card } from 'react-bootstrap';
 import './styles.css';
 
 const Dashboard = () => {
@@ -64,9 +65,9 @@ const Dashboard = () => {
 
   return (
     <div className="container-fluid">
-      <div className="row g-4">
+      <Row className="g-4">
         {/* Botão Iniciar Treino */}
-        <div className="col-12">
+        <Col lg={12}>
           <div className="d-grid">
             <button 
               className="btn btn-primary btn-lg py-3 rounded-3"
@@ -76,47 +77,67 @@ const Dashboard = () => {
               Iniciar Treino
             </button>
           </div>
-        </div>
+        </Col>
 
         {/* Level Card */}
-        <div className="col-12">
-          <LevelCard {...levelData} />
-        </div>
+        <Col lg={12}>
+          <Card className="bg-dark border border-secondary border-opacity-50">
+            <Card.Body>
+              <LevelCard {...levelData} />
+            </Card.Body>
+          </Card>
+        </Col>
 
         {/* Stat Cards */}
-        <div className="col-12 col-md-4">
-          <StatCard
-            title="Distância Total"
-            value="42.5 km"
-            previousValue={35.2}
-            growth={20.7}
-            icon="fa-road"
-          />
-        </div>
-        <div className="col-12 col-md-4">
-          <StatCard
-            title="Tempo Total"
-            value="280 min"
-            previousValue={320}
-            growth={-12.5}
-            icon="fa-clock"
-          />
-        </div>
-        <div className="col-12 col-md-4">
-          <StatCard
-            title="Frequência Mensal"
-            value="12 treinos"
-            previousValue={8}
-            growth={50}
-            icon="fa-calendar-check"
-          />
-        </div>
+        <Col lg={4} sm={6}>
+          <Card className="bg-dark border border-secondary border-opacity-50">
+            <Card.Body>
+              <StatCard
+                title="Distância Total"
+                value="42.5 km"
+                previousValue={35.2}
+                growth={20.7}
+                icon="fa-road"
+              />
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col lg={4} sm={6}>
+          <Card className="bg-dark border border-secondary border-opacity-50">
+            <Card.Body>
+              <StatCard
+                title="Tempo Total"
+                value="280 min"
+                previousValue={320}
+                growth={-12.5}
+                icon="fa-clock"
+              />
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col lg={4} sm={6}>
+          <Card className="bg-dark border border-secondary border-opacity-50">
+            <Card.Body>
+              <StatCard
+                title="Frequência Mensal"
+                value="12 treinos"
+                previousValue={8}
+                growth={50}
+                icon="fa-calendar-check"
+              />
+            </Card.Body>
+          </Card>
+        </Col>
 
         {/* Achievements Card */}
-        <div className="col-12">
-          <AchievementsCard achievements={achievementsData} />
-        </div>
-      </div>
+        <Col lg={12}>
+          <Card className="bg-dark border border-secondary border-opacity-50">
+            <Card.Body>
+              <AchievementsCard achievements={achievementsData} />
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 };

@@ -14,8 +14,10 @@ import SignIn from './pages/auth/signIn';
 import SignUp from './pages/auth/signUp';
 import Dashboard from './pages/dashboard';
 import Profile from './pages/profile';
+import Progress from './pages/progress';
 import Workouts from './pages/workouts';
 import WorkoutSession from './pages/workout-session';
+import Competitions from './pages/competitions';
 
 const AppRoutes = () => {
   return (
@@ -33,7 +35,9 @@ const AppRoutes = () => {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="progress" element={<Progress />} />
             <Route path="workouts" element={<Workouts />} />
+            <Route path="competitions" element={<Competitions />} />
           </Route>
 
           {/* Workout Session Route - Fora do AdminLayout */}
