@@ -111,10 +111,10 @@ const CreateWorkout = () => {
       hideProgressBar: false,
       closeOnClick: true,
       pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
-      theme: "dark",
-    });
+        draggable: true,
+        progress: undefined,
+        theme: "dark",
+      });
   };
 
   const handleSubmit = async (e) => {

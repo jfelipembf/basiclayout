@@ -6,6 +6,7 @@ import { useUser } from './useUser';
 export const useWorkout = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [workouts, setWorkouts] = useState([]);
   const { user } = useUser();
 
   // Memoriza a referência da coleção de workouts
@@ -22,7 +23,7 @@ export const useWorkout = () => {
       const timestamp = Timestamp.now();
       const workout = {
         ...workoutData,
-        userId: user?.uid || '',
+        createdBy: user?.uid || '',
         createdAt: timestamp,
         updatedAt: timestamp
       };
@@ -38,88 +39,65 @@ export const useWorkout = () => {
     }
   }, [user, workoutsRef]);
 
-  // Busca estatísticas do mês atual e anterior
-  const getStats = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const currentDate = new Date();
-      const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const firstDayOfPreviousMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-
-      const workoutsQuery = query(
-        workoutsRef,
-        where('userId', '==', user?.uid || ''),
-        where('createdAt', '>=', firstDayOfPreviousMonth),
-        orderBy('createdAt', 'desc')
-      );
-
-      const querySnapshot = await getDocs(workoutsQuery);
-      const workouts = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      const currentMonthWorkouts = workouts.filter(workout => 
-        workout.createdAt.toDate() >= firstDayOfMonth
-      );
-
-      const previousMonthWorkouts = workouts.filter(workout => 
-        workout.createdAt.toDate() >= firstDayOfPreviousMonth && 
-        workout.createdAt.toDate() < firstDayOfMonth
-      );
-
-      return {
-        currentMonth: {
-          total: currentMonthWorkouts.length,
-          completed: currentMonthWorkouts.filter(w => w.status === 'completed').length,
-          inProgress: currentMonthWorkouts.filter(w => w.status === 'in_progress').length
-        },
-        previousMonth: {
-          total: previousMonthWorkouts.length,
-          completed: previousMonthWorkouts.filter(w => w.status === 'completed').length,
-          inProgress: previousMonthWorkouts.filter(w => w.status === 'in_progress').length
-        }
-      };
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [user, workoutsRef]);
-
-  // Busca todos os treinos do usuário
-  const getWorkouts = useCallback(async () => {
+  // Busca treinos por data
+  const getWorkoutsByDate = useCallback(async (date) => {
     setLoading(true);
     setError(null);
 
     try {
       const workoutsQuery = query(
         workoutsRef,
-        where('userId', '==', user?.uid || ''),
-        orderBy('createdAt', 'desc')
+        where('date', '==', date)
       );
 
       const querySnapshot = await getDocs(workoutsQuery);
-      return querySnapshot.docs.map(doc => ({
+      const workoutsList = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+
+      return workoutsList;
     } catch (err) {
+      console.error('Error in getWorkoutsByDate:', err);
       setError(err.message);
       throw err;
     } finally {
       setLoading(false);
     }
-  }, [user, workoutsRef]);
+  }, [workoutsRef]);
+
+  // Busca todas as datas disponíveis
+  const getAvailableDates = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const workoutsQuery = query(
+        workoutsRef,
+        orderBy('date', 'desc')
+      );
+
+      const querySnapshot = await getDocs(workoutsQuery);
+      const dates = querySnapshot.docs
+        .map(doc => doc.data().date)
+        .filter((date, index, self) => self.indexOf(date) === index);
+
+      return dates;
+    } catch (err) {
+      console.error('Error in getAvailableDates:', err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [workoutsRef]);
 
   return {
     loading,
     error,
+    workouts,
     addWorkout,
-    getStats,
-    getWorkouts
+    getWorkoutsByDate,
+    getAvailableDates
   };
 };
