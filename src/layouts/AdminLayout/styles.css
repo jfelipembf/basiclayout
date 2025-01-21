@@ -1,0 +1,75 @@
+/* Apenas estilos que não podem ser feitos com Bootstrap */
+/* Header styles */
+.header {
+  height: 60px;
+  transition: padding-left 0.3s ease;
+}
+
+.header.shifted {
+  padding-left: 320px;
+}
+
+/* User avatar */
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+}
+
+/* Sidebar styles */
+.sidebar {
+  width: 320px;
+  left: 0;
+  top: 0;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  z-index: 1050;
+}
+
+.sidebar.open {
+  transform: translateX(0);
+}
+
+/* Sidebar navigation */
+.nav-link {
+  color: rgba(255, 255, 255, 0.7) !important;
+  border-left: 2px solid transparent;
+  padding: 0.875rem 1.25rem;
+  margin: 0 -0.5rem;
+  transition: all 0.2s ease;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: white !important;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-left-color: var(--bs-primary);
+}
+
+/* Main content */
+.main-content {
+  padding-top: 60px;
+  min-height: 100vh;
+  transition: padding-left 0.3s ease;
+}
+
+.main-content.shifted {
+  padding-left: 320px;
+}
+
+/* Mobile styles */
+@media (max-width: 767.98px) {
+  .sidebar {
+    width: 50vw;
+    transform: translateX(-100%);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    margin-left: 0;
+  }
+}
