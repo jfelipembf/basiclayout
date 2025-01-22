@@ -203,23 +203,23 @@ const WorkoutPage = () => {
                   >
                     <div className="d-flex flex-column flex-grow-1">
                       <div className="d-flex align-items-center mb-1">
-                        <h5 className="mb-0 me-2">{workout.name}</h5>
-                        <div className="d-flex gap-2">
-                          {workout.sport && (
-                            <Badge bg="primary">
-                              {workout.sport}
-                            </Badge>
-                          )}
-                          {workout.level && (
-                            <Badge bg="info">
-                              {workout.level}
-                            </Badge>
-                          )}
-                        </div>
+                        <h5 className="mb-0">{workout.name}</h5>
                       </div>
-                      <small className="text-light opacity-75">
+                      <small className="text-light opacity-75 mb-2">
                         {format(new Date(workout.date), "EEEE, dd 'de' MMMM", { locale: ptBR })}
                       </small>
+                      <div className="d-flex gap-2">
+                        {workout.sport && (
+                          <Badge bg="primary">
+                            {workout.sport}
+                          </Badge>
+                        )}
+                        {workout.level && (
+                          <Badge bg="info">
+                            {workout.level}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     <div className="d-flex align-items-center ms-3">
                       {workout.status === 'completed' && (

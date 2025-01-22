@@ -3,6 +3,7 @@
   min-height: 100vh;
   background-color: #212529;
   overflow-x: hidden;
+  position: relative;
 }
 
 .main-content {
@@ -12,6 +13,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .main-content.with-sidebar {
@@ -35,6 +37,32 @@
   padding: 1.5rem;
   max-width: 1400px;
   margin: 0 auto;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+/* Ajuste para modais e dropdowns */
+.modal-backdrop {
+  z-index: 1040;
+}
+
+.modal {
+  z-index: 1050;
+}
+
+.dropdown-menu {
+  z-index: 1030;
+}
+
+/* Ajuste para datepicker */
+.react-datepicker-popper {
+  z-index: 1060 !important;
+}
+
+/* Ajuste para toasts */
+.Toastify {
+  z-index: 1070;
 }
 
 @media (max-width: 576px) {

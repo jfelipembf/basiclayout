@@ -1,5 +1,16 @@
 .workout-card {
   transition: all 0.3s ease;
+  margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  width: 100%;
+}
+
+.workout-card .card-body {
+  padding: 1rem;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .workout-card:hover {
@@ -9,6 +20,11 @@
 
 .exercise-item {
   transition: background-color 0.3s ease;
+  padding: 1rem;
+  border-radius: 0.25rem;
+  margin-bottom: 0.5rem;
+  width: 100%;
+  overflow-x: auto;
 }
 
 .exercise-item:hover {
@@ -19,19 +35,126 @@
   cursor: pointer;
 }
 
+/* Ajustes de layout */
+.workout-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.workout-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.workout-details {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0;
+  width: 100%;
+}
+
+.exercise-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.exercise-details {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+/* Ajustes para texto longo */
+.exercise-title,
+.workout-title {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+.exercise-description,
+.workout-description {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+/* Ajustes para badges e ícones */
+.badge {
+  white-space: normal;
+  text-align: center;
+  margin: 2px;
+}
+
+.icon-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
+  margin: 2px;
+}
+
 @media (max-width: 768px) {
   .exercise-number {
     margin-bottom: 1rem;
+  }
+
+  .workout-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .workout-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .exercise-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .workout-card .card-body {
+    padding: 0.75rem;
+  }
+
+  .exercise-item {
+    padding: 0.75rem;
+  }
+
+  .workout-details,
+  .exercise-details {
+    gap: 0.5rem;
+  }
+
+  /* Ajuste para botões em mobile */
+  .btn {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
   }
 }
 
 /* Estilos do DatePicker */
 .react-datepicker-wrapper {
   width: 100%;
-}
-
-.react-datepicker-popper {
-  z-index: 1000;
+  margin-bottom: 1rem;
 }
 
 .react-datepicker {
@@ -84,9 +207,13 @@
   background-color: #212529 !important;
   border-color: #495057 !important;
   color: #fff !important;
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
 }
 
 .react-datepicker__input-container input:focus {
   border-color: #0d6efd !important;
   box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+  outline: none;
 }
