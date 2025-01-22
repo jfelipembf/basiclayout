@@ -3,12 +3,13 @@ import { Container, Card, Badge, Button, Form, Alert, Collapse, Row, Col } from 
 import { format } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
 import DatePicker, { registerLocale } from 'react-datepicker';
-import { FaCheck, FaChevronDown, FaChevronUp, FaBullseye, FaClock, FaFire, FaVideo, FaEdit } from 'react-icons/fa';
+import { FaCheck, FaChevronDown, FaChevronUp, FaBullseye, FaClock, FaFire, FaVideo } from 'react-icons/fa';
 import { useWorkout } from '../../hooks/useWorkout';
 import { toast } from 'react-toastify';
 import { useUser } from '../../hooks/useUser';
 import 'react-datepicker/dist/react-datepicker.css';
 import './styles.css';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 registerLocale('pt-BR', ptBR);
 
@@ -18,8 +19,9 @@ const WorkoutPage = () => {
   const [selectedDateRange, setSelectedDateRange] = useState([new Date(), null]);
   const [displayedWorkouts, setDisplayedWorkouts] = useState([]);
   const [expandedWorkouts, setExpandedWorkouts] = useState(new Set());
-  const [editingWorkout, setEditingWorkout] = useState(null);
   const [loadingWorkouts, setLoadingWorkouts] = useState(true);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [workoutToFinish, setWorkoutToFinish] = useState(null);
 
   // Função para carregar os treinos
   const loadWorkouts = useCallback(async () => {
@@ -97,24 +99,38 @@ const WorkoutPage = () => {
   };
 
   const handleFinishWorkout = async (workoutId) => {
+    const workout = displayedWorkouts.find(w => w.id === workoutId);
+    if (!workout) return;
+
+    // Verificar se todos os exercícios foram completados
+    const hasUncompletedExercises = workout.exercises.some(exercise => !exercise.completed);
+
+    if (hasUncompletedExercises) {
+      setWorkoutToFinish(workout);
+      setShowConfirmDialog(true);
+      return;
+    }
+
+    await finishWorkoutProgress(workout);
+  };
+
+  const finishWorkoutProgress = async (workout) => {
     try {
-      const workout = displayedWorkouts.find(w => w.id === workoutId);
-      if (!workout) return;
+      const success = await updateWorkoutProgress(workout.id, workout.exercises, 'completed');
+      if (success) {
+        loadWorkouts();
+        setShowConfirmDialog(false);
+        setWorkoutToFinish(null);
+      }
+    } catch (error) {
+      console.error('Error finishing workout:', error);
+      toast.error('Erro ao finalizar treino');
+    }
+  };
 
-      // Salvar o progresso com toast
-      await updateWorkoutProgress(workoutId, workout.exercises, 'completed', false);
-      
-      // Atualizar estado local
-      setDisplayedWorkouts(prev => prev.map(w => {
-        if (w.id !== workoutId) return w;
-        return { ...w, status: 'completed' };
-      }));
-
-      // Recarregar os treinos para atualizar a interface
-      await loadWorkouts();
-    } catch (err) {
-      console.error('Error finishing workout:', err);
-      toast.error('Erro ao salvar treino');
+  const handleConfirmFinish = () => {
+    if (workoutToFinish) {
+      finishWorkoutProgress(workoutToFinish);
     }
   };
 
@@ -128,10 +144,6 @@ const WorkoutPage = () => {
       }
       return newSet;
     });
-  };
-
-  const handleEditToggle = (workoutId) => {
-    setEditingWorkout(prev => prev === workoutId ? null : workoutId);
   };
 
   return (
@@ -219,16 +231,6 @@ const WorkoutPage = () => {
                   <Collapse in={expandedWorkouts.has(workout.id)}>
                     <div>
                       <Card.Body className="bg-dark text-white">
-                        <div className="d-flex justify-content-end mb-3">
-                          <Button 
-                            variant="link" 
-                            className="text-white p-0"
-                            onClick={() => handleEditToggle(workout.id)}
-                          >
-                            <FaEdit size={18} />
-                          </Button>
-                        </div>
-
                         {/* Informações do treino */}
                         <div className="mb-4">
                           <div className="d-flex flex-column flex-md-row justify-content-between align-items-start mb-3">
@@ -299,7 +301,7 @@ const WorkoutPage = () => {
                                       type="checkbox"
                                       checked={exercise.completed}
                                       onChange={() => handleExerciseComplete(workout.id, index)}
-                                      disabled={workout.status === 'completed' && !editingWorkout}
+                                      disabled={workout.status === 'completed'}
                                       className="mt-2 mt-md-0"
                                     />
                                   </div>
@@ -345,10 +347,10 @@ const WorkoutPage = () => {
                             variant="success"
                             size="sm"
                             onClick={() => handleFinishWorkout(workout.id)}
-                            disabled={workout.status === 'completed' && !editingWorkout}
+                            disabled={workout.status === 'completed'}
                           >
                             <FaCheck className="me-1" />
-                            {editingWorkout === workout.id ? 'Salvar Alterações' : 'Finalizar Treino'}
+                            Finalizar Treino
                           </Button>
                         </div>
                       </Card.Body>
@@ -360,6 +362,18 @@ const WorkoutPage = () => {
           )}
         </Col>
       </Row>
+
+      {/* Modal de Confirmação */}
+      <ConfirmDialog
+        show={showConfirmDialog}
+        onClose={() => {
+          setShowConfirmDialog(false);
+          setWorkoutToFinish(null);
+        }}
+        onConfirm={handleConfirmFinish}
+        title="Finalizar Treino"
+        message="Alguns exercícios ainda não foram finalizados. Gostaria de encerrar o treino mesmo assim?"
+      />
     </Container>
   );
 };
