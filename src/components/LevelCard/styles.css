@@ -1,0 +1,87 @@
+.level-card {
+  background: linear-gradient(145deg, #212529 0%, #2d3237 100%);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  color: var(--bs-white);
+}
+
+.level-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.level-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--bs-primary);
+}
+
+.level-subtitle {
+  color: var(--bs-gray-400);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.points-info {
+  text-align: right;
+}
+
+.current-points {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--bs-info);
+  margin: 0;
+}
+
+.points-to-next {
+  font-size: 0.875rem;
+  color: var(--bs-gray-400);
+  margin: 0;
+}
+
+.progress {
+  height: 1.2rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 0.6rem;
+  overflow: hidden; /* Evita bordas de barra ultrapassarem os limites */
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.progress-bar {
+  background: linear-gradient(90deg, #0d6efd, #6610f2);
+  border-radius: 0.6rem;
+  transition: width 0.4s ease-in-out;
+}
+
+.next-level {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.next-level-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: var(--bs-light);
+}
+
+.next-level-subtitle {
+  font-size: 0.875rem;
+  color: var(--bs-gray-500);
+}
+
+@media (max-width: 768px) {
+  .level-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .points-info {
+    text-align: left;
+  }
+}

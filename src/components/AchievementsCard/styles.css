@@ -1,0 +1,35 @@
+.achievements-container {
+  background: linear-gradient(145deg, rgba(33,37,41,1) 0%, rgba(45,50,55,1) 100%);
+}
+
+.achievement-item {
+  transition: transform 0.2s ease;
+}
+
+.achievement-item:hover {
+  transform: translateY(-2px);
+}
+
+.nav-pills .nav-link {
+  transition: all 0.3s ease;
+}
+
+.nav-pills .nav-link:hover:not(.active) {
+  background: rgba(255,255,255,0.15) !important;
+}
+
+.progress {
+  overflow: hidden;
+}
+
+.progress-bar {
+  transition: width 0.6s ease;
+}
+
+.icon-container {
+  transition: all 0.3s ease;
+}
+
+.icon-container:hover {
+  transform: scale(1.1);
+}

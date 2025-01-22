@@ -30,19 +30,19 @@ export const useUser = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('useUser: Setting up auth state listener');
+    ('useUser: Setting up auth state listener');
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('useUser: Auth state changed', firebaseUser);
+      ('useUser: Auth state changed', firebaseUser);
       try {
         if (firebaseUser) {
-          console.log('useUser: User is authenticated, fetching user data');
+          ('useUser: User is authenticated, fetching user data');
           // Busca dados adicionais do usuário no Firestore
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           let userData = userDoc.data() || {};
 
           // Se o usuário não existir no Firestore, cria um novo documento
           if (!userDoc.exists()) {
-            console.log('useUser: Creating new user document in Firestore');
+            ('useUser: Creating new user document in Firestore');
             const newUserData = {
               ...DEFAULT_USER_DATA,
               email: firebaseUser.email,
@@ -54,7 +54,7 @@ export const useUser = () => {
             userData = newUserData;
           }
 
-          console.log('useUser: Setting user state with data', { ...firebaseUser, ...userData });
+          ('useUser: Setting user state with data', { ...firebaseUser, ...userData });
           setUser({
             uid: firebaseUser.uid,
             ...DEFAULT_USER_DATA,
@@ -64,7 +64,7 @@ export const useUser = () => {
             photoURL: firebaseUser.photoURL || userData.photoURL || DEFAULT_PHOTO,
           });
         } else {
-          console.log('useUser: No user found, setting user state to null');
+          ('useUser: No user found, setting user state to null');
           setUser(null);
         }
       } catch (error) {
@@ -76,7 +76,7 @@ export const useUser = () => {
     });
 
     return () => {
-      console.log('useUser: Cleaning up auth state listener');
+      ('useUser: Cleaning up auth state listener');
       unsubscribe();
     };
   }, []);

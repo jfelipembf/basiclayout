@@ -62,7 +62,7 @@ const Events = () => {
 
   const handleRegister = (eventId) => {
     // Implementar lógica de inscrição
-    console.log('Registrando para o evento:', eventId);
+    ('Registrando para o evento:', eventId);
   };
 
   return (

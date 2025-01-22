@@ -41,15 +41,15 @@ const Students = () => {
   };
 
   const handleEdit = (id) => {
-    console.log('Editar aluno:', id);
+    ('Editar aluno:', id);
   };
 
   const handleView = (id) => {
-    console.log('Visualizar aluno:', id);
+    ('Visualizar aluno:', id);
   };
 
   const handleDelete = (id) => {
-    console.log('Excluir aluno:', id);
+    ('Excluir aluno:', id);
   };
 
   return (

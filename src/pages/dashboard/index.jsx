@@ -7,6 +7,7 @@ import { Row, Col, Card } from 'react-bootstrap';
 import { doc, getDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { getAuth } from 'firebase/auth';
+import { useLevel } from '../../hooks/useLevel';
 import './styles.css';
 
 const Dashboard = () => {
@@ -14,6 +15,7 @@ const Dashboard = () => {
   const [userInfo, setUserInfo] = useState(null);
   const [monthlyStats, setMonthlyStats] = useState({ current: null, previous: null });
   const auth = getAuth();
+  const { levelInfo, loading } = useLevel();
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -23,7 +25,7 @@ const Dashboard = () => {
         if (userDoc.exists()) {
           const userData = userDoc.data().info;
           setUserInfo(userData);
-          console.log('🏃‍♂️ Dados Gerais do Usuário:', {
+          ('🏃‍♂️ Dados Gerais do Usuário:', {
             frequency: userData.frequency,
             totalDistance: userData.totalDistance + 'm',
             totalTime: userData.totalTime + 'min'
@@ -35,7 +37,7 @@ const Dashboard = () => {
         const q = query(monthlyStatsRef, orderBy('monthId', 'desc'), limit(2));
         const querySnapshot = await getDocs(q);
         
-        console.log('🔍 Documentos encontrados:', querySnapshot.docs.map(doc => ({
+        ('🔍 Documentos encontrados:', querySnapshot.docs.map(doc => ({
           id: doc.id,
           data: doc.data()
         })));
@@ -45,7 +47,7 @@ const Dashboard = () => {
           stats.push(doc.data());
         });
 
-        console.log('📝 Stats brutos:', stats);
+        ('📝 Stats brutos:', stats);
         
         const monthlyData = {
           current: stats.length > 0 ? stats[0] : null,
@@ -54,7 +56,7 @@ const Dashboard = () => {
         
         setMonthlyStats(monthlyData);
         
-        console.log('📊 Dados Mensais:', {
+        ('📊 Dados Mensais:', {
           mesAtual: monthlyData.current ? {
             mes: monthlyData.current.monthId,
             frequency: monthlyData.current.frequency + ' treinos',
@@ -70,7 +72,7 @@ const Dashboard = () => {
         });
 
         // Adicionar log para debug da query
-        console.log('🔎 Query Debug:', {
+        ('🔎 Query Debug:', {
           path: `users/${auth.currentUser.uid}/monthlyStats`,
           orderBy: 'monthId desc',
           limit: 2,
@@ -79,7 +81,7 @@ const Dashboard = () => {
 
         // Calcular e mostrar as variações percentuais
         if (monthlyData.current && monthlyData.previous) {
-          console.log('📈 Variações Percentuais:', {
+          ('📈 Variações Percentuais:', {
             frequency: `${calculateGrowth(monthlyData.current.frequency, monthlyData.previous.frequency).toFixed(1)}%`,
             distance: `${calculateGrowth(monthlyData.current.totalDistance, monthlyData.previous.totalDistance).toFixed(1)}%`,
             time: `${calculateGrowth(monthlyData.current.totalTime, monthlyData.previous.totalTime).toFixed(1)}%`
@@ -114,20 +116,6 @@ const Dashboard = () => {
   const formatWorkouts = (frequency) => {
     if (!frequency && frequency !== 0) return '-';
     return `${frequency} treinos`;
-  };
-
-  // Dados fictícios para o LevelCard
-  const levelData = {
-    currentPoints: 2750,
-    currentLevel: 'Intermediário',
-    nextLevel: 'Avançado',
-    pointsToNextLevel: 250
-  };
-
-  // Dados fictícios para o nextLevel
-  const nextLevel = {
-    name: 'Avançado',
-    minPoints: 3000
   };
 
   // Dados fictícios para o userStats
@@ -200,12 +188,8 @@ const Dashboard = () => {
         </Col>
 
         {/* Level Card */}
-        <Col lg={12}>
-          <Card className="bg-dark border border-secondary border-opacity-50">
-            <Card.Body>
-              <LevelCard userStats={userStats} currentLevel={levelData.currentLevel} nextLevel={nextLevel} />
-            </Card.Body>
-          </Card>
+        <Col md={4}>
+          <LevelCard levelInfo={levelInfo} />
         </Col>
 
         {/* Stat Cards */}
@@ -265,7 +249,7 @@ const Dashboard = () => {
         <Col md={6}>
           <Card className="bg-dark border border-secondary border-opacity-50">
             <Card.Body>
-              <AchievementsCard achievements={achievementsData} userStats={userStats} />
+              <AchievementsCard userInfo={userInfo} />
             </Card.Body>
           </Card>
         </Col>

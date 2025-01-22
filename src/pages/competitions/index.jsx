@@ -55,7 +55,7 @@ const Competitions = () => {
       for (const competition of exampleCompetitions) {
         await addDoc(competitionsRef, competition);
       }
-      console.log('Dados de exemplo adicionados com sucesso!');
+      ('Dados de exemplo adicionados com sucesso!');
     } catch (error) {
       console.error('Erro ao adicionar dados de exemplo:', error);
     }

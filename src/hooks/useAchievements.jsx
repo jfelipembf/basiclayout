@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useFirebase } from '../contexts/FirebaseContext';
 import { collection, doc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { format, startOfWeek, endOfWeek, parseISO, isWithinInterval, subDays } from 'date-fns';
-import { ACHIEVEMENTS } from '../utils/achievements';
+import { formatAchievementValue } from '../../utils/achievements';
 
 export const useAchievements = () => {
   const { db, auth } = useFirebase();
