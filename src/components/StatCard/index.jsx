@@ -1,6 +1,6 @@
 import React from 'react';
 
-const StatCard = ({ title, value, previousValue, growth, icon }) => {
+const StatCard = ({ title, value, previousValue, currentMonthValue, previousMonthValue, growth, icon }) => {
   const isPositiveGrowth = growth > 0;
   const growthColor = isPositiveGrowth ? 'text-success' : 'text-danger';
   const growthIcon = isPositiveGrowth ? 'fa-arrow-up' : 'fa-arrow-down';
@@ -9,7 +9,7 @@ const StatCard = ({ title, value, previousValue, growth, icon }) => {
     if (growth === 0) return 'Sem alteração em relação ao mês anterior';
     
     const status = isPositiveGrowth ? 'melhor' : 'pior';
-    return `${Math.abs(growth)}% ${status} que o mês anterior`;
+    return `${Math.abs(growth.toFixed(1))}% ${status} que o mês anterior`;
   };
 
   return (
@@ -24,7 +24,17 @@ const StatCard = ({ title, value, previousValue, growth, icon }) => {
         </div>
 
         {/* Valor atual */}
-        <h3 className="text-white mb-3">{value}</h3>
+        <h3 className="text-white mb-2">{value}</h3>
+
+        {/* Valores mensais */}
+        <div className="mb-3">
+          <div className="text-white-50 small">
+            <span>Mês atual: {currentMonthValue}</span>
+          </div>
+          <div className="text-white-50 small">
+            <span>Mês anterior: {previousMonthValue || '-'}</span>
+          </div>
+        </div>
 
         {/* Comparativo com mensagem */}
         <div className="d-flex align-items-center">
