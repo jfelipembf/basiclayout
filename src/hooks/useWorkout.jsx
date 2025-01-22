@@ -1,28 +1,115 @@
 import { useState, useCallback } from 'react';
 import { useFirebase } from '../contexts/FirebaseContext';
-import { collection, doc, getDoc, getDocs, query, where, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  query, 
+  where, 
+  setDoc, 
+  serverTimestamp, 
+  writeBatch,
+  increment,
+  updateDoc
+} from 'firebase/firestore';
 import { toast } from 'react-toastify';
+import { format } from 'date-fns';
 
 export const useWorkout = () => {
   const { db, auth } = useFirebase();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Constantes para mensagens de erro/sucesso
+  const MESSAGES = {
+    AUTH_REQUIRED: 'Você precisa estar logado para atualizar o treino',
+    USER_NOT_FOUND: 'Usuário não encontrado',
+    WORKOUT_COMPLETED: 'Este treino já foi finalizado e não pode ser modificado.',
+    SAVE_SUCCESS: 'Progresso salvo com sucesso!',
+    COMPLETE_SUCCESS: 'Treino finalizado com sucesso!',
+    SAVE_ERROR: 'Erro ao salvar progresso',
+    STATS_ERROR: 'Erro ao atualizar estatísticas'
+  };
+
+  // Função para gerar o ID do documento de estatísticas mensais
+  const generateMonthlyStatsId = (date) => {
+    return format(date, 'yyyy-MM');
+  };
+
+  // Função para atualizar estatísticas mensais
+  const updateMonthlyStats = async (userId, workoutId, workoutDate, workoutStats) => {
+    try {
+      const monthId = generateMonthlyStatsId(new Date(workoutDate));
+      const statsRef = doc(db, `users/${userId}/monthlyStats/${monthId}`);
+      const statsDoc = await getDoc(statsRef);
+
+      // Preparar dados do treino
+      const workoutEntry = {
+        workoutId,
+        date: workoutDate,
+        distance: workoutStats.totalDistance,
+        time: workoutStats.totalTime,
+        frequency: 1
+      };
+
+      if (!statsDoc.exists()) {
+        // Criar novo documento mensal
+        await setDoc(statsRef, {
+          monthId,
+          year: new Date(workoutDate).getFullYear(),
+          month: new Date(workoutDate).getMonth() + 1,
+          totalDistance: workoutStats.totalDistance,
+          totalTime: workoutStats.totalTime,
+          frequency: 1,
+          workouts: {
+            [workoutId]: workoutEntry
+          },
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // Atualizar documento existente
+        const currentStats = statsDoc.data();
+        const currentWorkouts = currentStats.workouts || {};
+
+        // Se o treino já existe, não contar na frequência
+        const isNewWorkout = !currentWorkouts[workoutId];
+
+        await updateDoc(statsRef, {
+          totalDistance: increment(workoutStats.totalDistance),
+          totalTime: increment(workoutStats.totalTime),
+          frequency: increment(isNewWorkout ? 1 : 0),
+          [`workouts.${workoutId}`]: workoutEntry,
+          updatedAt: serverTimestamp()
+        });
+      }
+    } catch (error) {
+      console.error('Error updating monthly stats:', error);
+      throw new Error(MESSAGES.STATS_ERROR);
+    }
+  };
+
   // Função para garantir que todos os campos necessários estejam presentes
   const sanitizeExercise = (exercise) => {
+    const defaultExercise = {
+      id: '',
+      name: '',
+      description: '',
+      series: '',
+      repetitions: '',
+      distance: '',
+      duration: '',
+      material: '',
+      intensity: '',
+      videoUrl: '',
+      completed: false,
+      completedAt: null
+    };
+
     return {
-      id: exercise.id || '',
-      name: exercise.name || '',
-      description: exercise.description || '',
-      series: exercise.series || '',
-      repetitions: exercise.repetitions || '',
-      distance: exercise.distance || '',
-      duration: exercise.duration || '',
-      material: exercise.material || '',
-      intensity: exercise.intensity || '',
-      videoUrl: exercise.videoUrl || '',
-      completed: Boolean(exercise.completed),
-      completedAt: exercise.completedAt || null
+      ...defaultExercise,
+      ...exercise,
+      completed: Boolean(exercise.completed)
     };
   };
 
@@ -32,15 +119,13 @@ export const useWorkout = () => {
 
     exercises.forEach(exercise => {
       if (exercise.completed) {
-        // Calcular distância
+        const series = parseInt(exercise.series) || 1;
+        
         if (exercise.distance) {
-          const series = parseInt(exercise.series) || 1;
           totalDistance += parseInt(exercise.distance) * series;
         }
 
-        // Calcular tempo
         if (exercise.duration) {
-          const series = parseInt(exercise.series) || 1;
           totalTime += parseInt(exercise.duration) * series;
         }
       }
@@ -55,13 +140,12 @@ export const useWorkout = () => {
       const userDoc = await getDoc(userRef);
       
       if (!userDoc.exists()) {
-        throw new Error('Usuário não encontrado');
+        throw new Error(MESSAGES.USER_NOT_FOUND);
       }
 
       const userData = userDoc.data();
       const currentInfo = userData.info || {};
 
-      // Atualizar todas as estatísticas
       const newInfo = {
         ...currentInfo,
         totalDistance: (currentInfo.totalDistance || 0) + workoutStats.totalDistance,
@@ -70,9 +154,7 @@ export const useWorkout = () => {
         lastWorkoutDate: serverTimestamp()
       };
 
-      // Atualizar no Firestore
       await setDoc(userRef, { info: newInfo }, { merge: true });
-
       return newInfo;
     } catch (error) {
       console.error('Erro ao atualizar estatísticas:', error);
@@ -94,8 +176,7 @@ export const useWorkout = () => {
       const workoutsQuery = query(workoutsRef, where('date', '==', dateStr));
       const workoutsSnapshot = await getDocs(workoutsQuery);
 
-      const workouts = [];
-      for (const workoutDoc of workoutsSnapshot.docs) {
+      return workoutsSnapshot.docs.map(workoutDoc => {
         const workoutData = workoutDoc.data();
         const workoutProgress = userProgress.workouts?.[workoutDoc.id] || {};
         
@@ -110,15 +191,13 @@ export const useWorkout = () => {
           });
         });
 
-        workouts.push({
+        return {
           id: workoutDoc.id,
           ...workoutData,
           status: workoutProgress.status || 'in_progress',
           exercises
-        });
-      }
-
-      return workouts;
+        };
+      });
     } catch (error) {
       console.error('Error getting workouts:', error);
       setError(error.message);
@@ -128,8 +207,8 @@ export const useWorkout = () => {
 
   const updateWorkoutProgress = useCallback(async (workoutId, exercises, status = 'in_progress', silent = false) => {
     if (!auth.currentUser) {
-      toast.error('Você precisa estar logado para atualizar o treino');
-      return;
+      toast.error(MESSAGES.AUTH_REQUIRED);
+      return false;
     }
 
     setLoading(true);
@@ -144,7 +223,7 @@ export const useWorkout = () => {
       // Verificar se o treino já foi completado anteriormente
       const previousStatus = currentProgress.workouts?.[workoutId]?.status;
       if (previousStatus === 'completed') {
-        toast.info('Este treino já foi finalizado e não pode ser modificado.');
+        toast.info(MESSAGES.WORKOUT_COMPLETED);
         return false;
       }
 
@@ -155,19 +234,17 @@ export const useWorkout = () => {
       const workoutDoc = await getDoc(workoutRef);
       const workoutData = workoutDoc.exists() ? workoutDoc.data() : {};
 
-      // Garantir que todos os exercícios tenham campos válidos
-      const sanitizedExercises = exercises.map(exercise => sanitizeExercise(exercise));
+      // Preparar exercícios
+      const sanitizedExercises = exercises.map(exercise => ({
+        ...sanitizeExercise(exercise),
+        updatedAt: new Date().toISOString()
+      }));
 
-      // Preparar exercícios indexados por ID
-      const exercisesById = {};
-      sanitizedExercises.forEach(exercise => {
-        exercisesById[exercise.id] = {
-          ...exercise,
-          updatedAt: new Date().toISOString()
-        };
-      });
+      const exercisesById = Object.fromEntries(
+        sanitizedExercises.map(exercise => [exercise.id, exercise])
+      );
 
-      // Atualizar progresso do treino específico
+      // Atualizar progresso
       const updatedProgress = {
         ...currentProgress,
         workouts: {
@@ -181,44 +258,42 @@ export const useWorkout = () => {
         lastUpdated: serverTimestamp()
       };
 
-      // Se estiver finalizando o treino, calcular e atualizar estatísticas
+      // Se estiver finalizando o treino, atualizar estatísticas
       if (status === 'completed') {
         const stats = calculateWorkoutStats(workoutData, sanitizedExercises);
         await updateUserStats(auth.currentUser.uid, stats);
+        await updateMonthlyStats(auth.currentUser.uid, workoutId, workoutData.date, stats);
       }
 
-      // Salvar no documento único do usuário
+      // Salvar alterações
       batch.set(progressRef, updatedProgress);
-
-      // Salvar na subcoleção do usuário
-      const userWorkoutRef = doc(db, `users/${auth.currentUser.uid}/workouts`, workoutId);
-      batch.set(userWorkoutRef, {
-        exercises: sanitizedExercises,
-        status,
-        updatedAt: serverTimestamp(),
-        workoutData: {
-          name: workoutData.name,
-          description: workoutData.description,
-          date: workoutData.date,
-          duration: workoutData.duration
+      batch.set(
+        doc(db, `users/${auth.currentUser.uid}/workouts`, workoutId),
+        {
+          exercises: sanitizedExercises,
+          status,
+          updatedAt: serverTimestamp(),
+          workoutData: {
+            name: workoutData.name,
+            description: workoutData.description,
+            date: workoutData.date,
+            duration: workoutData.duration
+          }
         }
-      });
+      );
 
       await batch.commit();
 
       if (!silent) {
-        if (status === 'completed') {
-          toast.success('Treino finalizado com sucesso!');
-        } else {
-          toast.success('Progresso salvo com sucesso!');
-        }
+        toast.success(status === 'completed' ? MESSAGES.COMPLETE_SUCCESS : MESSAGES.SAVE_SUCCESS);
       }
+      
       return true;
     } catch (error) {
       console.error('Error updating workout progress:', error);
       setError(error.message);
       if (!silent) {
-        toast.error('Erro ao salvar progresso');
+        toast.error(MESSAGES.SAVE_ERROR);
       }
       return false;
     } finally {
