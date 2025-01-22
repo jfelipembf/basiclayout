@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useFirebase } from '../contexts/FirebaseContext';
-import { collection, doc, getDoc, getDocs, query, where, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
 export const useWorkout = () => {
@@ -8,158 +8,93 @@ export const useWorkout = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const getWorkoutsByDate = useCallback(async (date) => {
-    if (!auth.currentUser || !date) {
-      return [];
-    }
+  // Função para garantir que todos os campos necessários estejam presentes
+  const sanitizeExercise = (exercise) => {
+    return {
+      id: exercise.id || '',
+      name: exercise.name || '',
+      description: exercise.description || '',
+      series: exercise.series || '',
+      repetitions: exercise.repetitions || '',
+      distance: exercise.distance || '',
+      duration: exercise.duration || '',
+      material: exercise.material || '',
+      intensity: exercise.intensity || '',
+      videoUrl: exercise.videoUrl || '',
+      completed: Boolean(exercise.completed),
+      completedAt: exercise.completedAt || null
+    };
+  };
 
-    setLoading(true);
-    setError(null);
+  const getWorkoutsByDate = useCallback(async (dateStr) => {
+    if (!auth.currentUser) return [];
 
     try {
-      const userId = auth.currentUser.uid;
+      const workouts = new Map(); // Usar Map para evitar duplicatas
 
-      // Primeiro buscar todos os treinos do dia
-      const workoutsRef = collection(db, 'workouts');
-      const q = query(workoutsRef, where('date', '==', date));
-      const querySnapshot = await getDocs(q);
-      
-      // Se não houver treinos, retornar array vazio
-      if (querySnapshot.empty) {
-        return [];
-      }
+      // 1. Primeiro buscar treinos já em progresso
+      const progressCollection = collection(db, 'workoutProgress');
+      const progressQuery = query(progressCollection, where('userId', '==', auth.currentUser.uid));
+      const progressSnapshot = await getDocs(progressQuery);
 
-      // Buscar progresso do usuário dos dois locais
-      const progressRef = doc(db, 'workoutProgress', userId);
-      const progressSnap = await getDoc(progressRef);
-      const progress = progressSnap.exists() ? progressSnap.data() : {};
-
-      // Mapear os treinos com seus progressos
-      const workouts = await Promise.all(
-        querySnapshot.docs.map(async (workoutDoc) => {
-          const workoutId = workoutDoc.id;
-          const workoutData = workoutDoc.data();
-
-          // Tentar buscar da subcoleção do usuário primeiro
-          const userWorkoutRef = doc(db, 'users', userId, 'workouts', workoutId);
-          const userWorkoutSnap = await getDoc(userWorkoutRef);
+      // Carregar treinos em progresso
+      for (const progressDoc of progressSnapshot.docs) {
+        const progressData = progressDoc.data();
+        if (progressData.workoutId) {
+          const workoutRef = doc(db, 'workouts', progressData.workoutId);
+          const workoutDoc = await getDoc(workoutRef);
           
-          // Pegar o progresso da subcoleção do usuário ou da coleção workoutProgress
-          const workoutProgress = userWorkoutSnap.exists() 
-            ? userWorkoutSnap.data() 
-            : progress[workoutId];
+          if (workoutDoc.exists()) {
+            const workoutData = workoutDoc.data();
+            if (workoutData.date === dateStr) {
+              const exercises = workoutData.exercises.map((exercise, index) => {
+                const savedExercise = progressData.exercises?.[index] || {};
+                return sanitizeExercise({
+                  ...exercise,
+                  ...savedExercise
+                });
+              });
 
-          // Se não houver progresso, retornar o treino original
-          if (!workoutProgress) {
-            return {
-              id: workoutId,
-              ...workoutData,
-              status: 'not_started',
-              savedStatus: 'not_started',
-              exercises: workoutData.exercises.map(exercise => ({
-                ...exercise,
-                completed: false
-              }))
-            };
+              workouts.set(workoutDoc.id, {
+                id: workoutDoc.id,
+                ...workoutData,
+                status: progressData.status || 'in_progress',
+                exercises
+              });
+            }
           }
-
-          // Se houver progresso, combinar os dados
-          return {
-            id: workoutId,
-            ...workoutData,
-            status: workoutProgress.status,
-            savedStatus: workoutProgress.status,
-            exercises: workoutData.exercises.map((exercise, index) => ({
-              ...exercise,
-              completed: workoutProgress.exercises?.some(e => e.index === index) || false,
-              completedAt: workoutProgress.exercises?.find(e => e.index === index)?.completedAt
-            }))
-          };
-        })
-      );
-
-      return workouts;
-    } catch (err) {
-      console.error('Error fetching workouts:', err);
-      setError(err.message);
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, [db, auth]);
-
-  const updateWorkoutProgress = useCallback(async (workoutId, exercises, status = 'in_progress') => {
-    if (!auth.currentUser) {
-      toast.error('Você precisa estar logado para salvar seu progresso');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const userId = auth.currentUser.uid;
-      
-      // Referências para os dois locais onde vamos salvar
-      const progressRef = doc(db, 'workoutProgress', userId);
-      const userWorkoutRef = doc(db, 'users', userId, 'workouts', workoutId);
-      
-      // Buscar treino original
-      const workoutRef = doc(db, 'workouts', workoutId);
-      const workoutSnap = await getDoc(workoutRef);
-      
-      if (!workoutSnap.exists()) {
-        throw new Error('Treino não encontrado');
+        }
       }
 
-      const originalWorkout = workoutSnap.data();
+      // 2. Buscar outros treinos para a data que ainda não estão em progresso
+      const workoutsRef = collection(db, 'workouts');
+      const workoutsQuery = query(workoutsRef, where('date', '==', dateStr));
+      const workoutsSnapshot = await getDocs(workoutsQuery);
 
-      // Dados a serem salvos
-      const progressData = {
-        status,
-        exercises,
-        updatedAt: serverTimestamp(),
-        userId,
-        workoutId,
-        workoutName: originalWorkout.name,
-        workoutDate: originalWorkout.date,
-        completedAt: status === 'completed' ? serverTimestamp() : null
-      };
+      for (const workoutDoc of workoutsSnapshot.docs) {
+        // Se já não estiver no Map, adicionar como novo
+        if (!workouts.has(workoutDoc.id)) {
+          const workoutData = workoutDoc.data();
+          workouts.set(workoutDoc.id, {
+            id: workoutDoc.id,
+            ...workoutData,
+            status: 'in_progress',
+            exercises: workoutData.exercises.map(exercise => sanitizeExercise(exercise))
+          });
+        }
+      }
 
-      // Buscar progresso atual para manter outros treinos
-      const currentProgressSnap = await getDoc(progressRef);
-      const currentProgress = currentProgressSnap.exists() ? currentProgressSnap.data() : {};
-
-      // Salvar na coleção workoutProgress
-      await setDoc(progressRef, {
-        ...currentProgress,
-        [workoutId]: progressData
-      });
-
-      // Salvar na subcoleção do usuário
-      await setDoc(userWorkoutRef, {
-        ...progressData,
-        // Adicionar dados extras do treino original para referência
-        sport: originalWorkout.sport,
-        level: originalWorkout.level,
-        objective: originalWorkout.objective,
-        duration: originalWorkout.duration,
-        description: originalWorkout.description
-      });
-
-      return progressData;
-    } catch (err) {
-      console.error('Error updating workout progress:', err);
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
+      return Array.from(workouts.values());
+    } catch (error) {
+      console.error('Error getting workouts:', error);
+      setError(error.message);
+      return [];
     }
-  }, [db, auth]);
+  }, [db, auth.currentUser]);
 
-  const finishWorkout = useCallback(async (workoutId, exercises) => {
+  const updateWorkoutProgress = useCallback(async (workoutId, exercises, status = 'in_progress', silent = false) => {
     if (!auth.currentUser) {
-      toast.error('Você precisa estar logado para finalizar o treino');
+      toast.error('Você precisa estar logado para atualizar o treino');
       return;
     }
 
@@ -167,22 +102,50 @@ export const useWorkout = () => {
     setError(null);
 
     try {
-      // Atualizar o progresso com status completed
-      return await updateWorkoutProgress(workoutId, exercises, 'completed');
-    } catch (err) {
-      console.error('Error finishing workout:', err);
-      setError(err.message);
-      throw err;
+      const batch = writeBatch(db);
+
+      // Garantir que todos os exercícios tenham campos válidos
+      const sanitizedExercises = exercises.map(exercise => sanitizeExercise(exercise));
+
+      // Atualizar em workoutProgress
+      const progressRef = doc(db, 'workoutProgress', `${auth.currentUser.uid}_${workoutId}`);
+      batch.set(progressRef, {
+        userId: auth.currentUser.uid,
+        workoutId,
+        exercises: sanitizedExercises,
+        status,
+        updatedAt: serverTimestamp()
+      });
+
+      // Atualizar na subcoleção do usuário
+      const userWorkoutRef = doc(db, `users/${auth.currentUser.uid}/workouts`, workoutId);
+      batch.set(userWorkoutRef, {
+        exercises: sanitizedExercises,
+        status,
+        updatedAt: serverTimestamp()
+      });
+
+      await batch.commit();
+      if (!silent) {
+        toast.success('Progresso salvo com sucesso!');
+      }
+      return true;
+    } catch (error) {
+      console.error('Error updating workout progress:', error);
+      setError(error.message);
+      if (!silent) {
+        toast.error('Erro ao salvar progresso');
+      }
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [updateWorkoutProgress, auth]);
+  }, [db, auth.currentUser]);
 
   return {
     loading,
     error,
     getWorkoutsByDate,
-    updateWorkoutProgress,
-    finishWorkout
+    updateWorkoutProgress
   };
 };

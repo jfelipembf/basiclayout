@@ -2,19 +2,43 @@
   display: flex;
   min-height: 100vh;
   background-color: #212529;
+  overflow-x: hidden;
 }
 
 .main-content {
   flex: 1;
   transition: margin-left 0.3s ease;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .main-content.with-sidebar {
   margin-left: 250px;
 }
 
+/* Ajustes para telas menores */
 @media (max-width: 768px) {
   .main-content.with-sidebar {
     margin-left: 0;
+  }
+  
+  .admin-layout {
+    flex-direction: column;
+  }
+}
+
+/* Ajustes para conteúdo */
+.container-fluid {
+  flex: 1;
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+@media (max-width: 576px) {
+  .container-fluid {
+    padding: 1rem;
   }
 }
