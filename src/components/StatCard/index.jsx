@@ -1,51 +1,113 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
-const StatCard = ({ title, value, previousValue, currentMonthValue, previousMonthValue, growth, icon }) => {
-  const isPositiveGrowth = growth > 0;
-  const growthColor = isPositiveGrowth ? 'text-success' : 'text-danger';
-  const growthIcon = isPositiveGrowth ? 'fa-arrow-up' : 'fa-arrow-down';
-  
-  const getComparisonMessage = () => {
-    if (growth === 0) return 'Sem alteração em relação ao mês anterior';
+const StatCard = ({ 
+  title, 
+  value = 0, 
+  unit = '', 
+  icon = 'fa-chart-line',
+  color = 'primary',
+  change = null,
+  currentMonthValue = null,
+  previousMonthValue = null,
+  decimals = 1 
+}) => {
+  // Função auxiliar para formatar números
+  const formatNumber = (num, forceDecimals = true) => {
+    if (num === undefined || num === null) return '0';
+    const number = Number(num);
+    if (isNaN(number)) return '0';
     
-    const status = isPositiveGrowth ? 'melhor' : 'pior';
-    return `${Math.abs(growth.toFixed(1))}% ${status} que o mês anterior`;
+    // Se o número for inteiro e não forçarmos decimais, retorna sem casas decimais
+    if (Number.isInteger(number) && !forceDecimals) {
+      return number.toString();
+    }
+    
+    return number.toFixed(decimals);
   };
 
+  // Função para determinar a mensagem de comparação
+  const getComparisonMessage = () => {
+    if (change === null || change === undefined) return null;
+    
+    const changeValue = parseFloat(change);
+    if (isNaN(changeValue) || changeValue === 0) return null;
+
+    const isPositive = changeValue > 0;
+    return {
+      value: Math.abs(changeValue),
+      status: isPositive ? 'melhor' : 'pior',
+      isPositive
+    };
+  };
+
+  const comparison = getComparisonMessage();
+
   return (
-    <div className="bg-dark">
-      <div className="card-body p-4">
-        {/* Cabeçalho com título */}
-        <div className="d-flex align-items-center mb-3">
-          <div className="bg-primary bg-opacity-10 p-2 rounded-2 me-3">
-            <i className={`fas ${icon} text-primary fs-4`}></i>
+    <div className="h-100">
+      <div className="card h-100 bg-dark border-0 shadow">
+        <div className="card-body p-4">
+          {/* Header */}
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <div className="d-flex align-items-center">
+              <div 
+                className={`icon-container me-3 bg-${color} bg-opacity-10 rounded-3`}
+                style={{ width: '48px', height: '48px' }}
+              >
+                <i className={`fas ${icon} text-${color} fs-4`}></i>
+              </div>
+              <div>
+                <h6 className="text-white-50 mb-0">{title}</h6>
+                <h3 className="text-white mb-0">
+                  {formatNumber(value, unit !== 'treinos')} {unit}
+                </h3>
+              </div>
+            </div>
           </div>
-          <span className="text-white-50">{title}</span>
-        </div>
 
-        {/* Valor atual */}
-        <h3 className="text-white mb-2">{value}</h3>
+          {/* Valores mensais */}
+          {(currentMonthValue !== null || previousMonthValue !== null) && (
+            <div className="mb-3">
+              {currentMonthValue !== null && (
+                <div className="text-white-50 small">
+                  <span>Mês atual: {formatNumber(currentMonthValue)}{unit}</span>
+                </div>
+              )}
+              {previousMonthValue !== null && (
+                <div className="text-white-50 small">
+                  <span>Mês anterior: {formatNumber(previousMonthValue)}{unit}</span>
+                </div>
+              )}
+            </div>
+          )}
 
-        {/* Valores mensais */}
-        <div className="mb-3">
-          <div className="text-white-50 small">
-            <span>Mês atual: {currentMonthValue}</span>
-          </div>
-          <div className="text-white-50 small">
-            <span>Mês anterior: {previousMonthValue || '-'}</span>
-          </div>
-        </div>
-
-        {/* Comparativo com mensagem */}
-        <div className="d-flex align-items-center">
-          <div className={`${growthColor} d-flex align-items-center`}>
-            {growth !== 0 && <i className={`fas ${growthIcon} me-2`}></i>}
-            <span>{getComparisonMessage()}</span>
-          </div>
+          {/* Comparação */}
+          {comparison && (
+            <div className="mt-3">
+              <div className={`d-flex align-items-center text-${comparison.isPositive ? 'success' : 'danger'}`}>
+                <i className={`fas fa-arrow-${comparison.isPositive ? 'up' : 'down'} me-2`}></i>
+                <small>
+                  {formatNumber(comparison.value)}% {comparison.status} que o mês anterior
+                </small>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
+};
+
+StatCard.propTypes = {
+  title: PropTypes.string.isRequired,
+  value: PropTypes.number,
+  unit: PropTypes.string,
+  icon: PropTypes.string,
+  color: PropTypes.string,
+  change: PropTypes.number,
+  currentMonthValue: PropTypes.number,
+  previousMonthValue: PropTypes.number,
+  decimals: PropTypes.number
 };
 
 export default StatCard;
