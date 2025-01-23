@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useWorkout } from '../../hooks/useWorkout';
+import { toast } from 'react-toastify';
 
 const WorkoutSession = () => {
   const navigate = useNavigate();
+  const { workoutId } = useParams();
+  const { completeWorkout } = useWorkout();
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [currentRound, setCurrentRound] = useState(1);
   const [isRest, setIsRest] = useState(false);
   const [restTime, setRestTime] = useState(60);
   const [showModal, setShowModal] = useState(false);
+  const [workout, setWorkout] = useState(null);
 
   // Formata o tempo em HH:MM:SS
   const formatTime = (seconds) => {
@@ -51,8 +56,17 @@ const WorkoutSession = () => {
     setIsRunning(true);
   };
 
-  const handleFinishWorkout = () => {
-    navigate('/dashboard');
+  const handleFinishWorkout = async () => {
+    try {
+      if (workout) {
+        await completeWorkout(workoutId, workout, workout.exercises);
+        toast.success('Treino finalizado com sucesso!');
+      }
+      navigate('/workouts');
+    } catch (error) {
+      console.error('Error finishing workout:', error);
+      toast.error('Erro ao finalizar treino');
+    }
   };
 
   return (
@@ -103,56 +117,67 @@ const WorkoutSession = () => {
         </div>
       )}
 
-      {/* Área do Cronômetro (50%) */}
-      <div className="d-flex align-items-center justify-content-center" style={{ height: '50vh' }}>
+      {/* Conteúdo Principal */}
+      <div className="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-white">
+        {/* Cronômetro */}
+        <div className="display-1 mb-4 font-monospace">
+          {formatTime(time)}
+        </div>
+
+        {/* Controles */}
+        <div className="d-flex gap-3 mb-4">
+          <button 
+            className={`btn ${isRunning ? 'btn-danger' : 'btn-success'} btn-lg`}
+            onClick={() => setIsRunning(!isRunning)}
+          >
+            {isRunning ? (
+              <><i className="fas fa-pause me-2"></i>Pausar</>
+            ) : (
+              <><i className="fas fa-play me-2"></i>Iniciar</>
+            )}
+          </button>
+          <button 
+            className="btn btn-primary btn-lg"
+            onClick={() => {
+              setIsRest(true);
+              setIsRunning(false);
+            }}
+            disabled={isRest}
+          >
+            <i className="fas fa-hourglass-start me-2"></i>
+            Descanso
+          </button>
+        </div>
+
+        {/* Contador de Rounds */}
         <div className="text-center">
-          <div className="display-1 fw-bold text-white mb-3" style={{ fontSize: '6rem' }}>
-            {formatTime(time)}
-          </div>
-          {isRunning && (
-            <div className="d-flex justify-content-center align-items-center gap-4">
-              <div className="text-center">
-                <div className="text-white-50 small mb-1">Rodada</div>
-                <div className="fs-4 fw-semibold text-white">{currentRound}</div>
-              </div>
-              {isRest && (
-                <div className="text-center">
-                  <div className="text-white-50 small mb-1">Descanso</div>
-                  <div className="fs-4 fw-semibold text-primary">{restTime}s</div>
-                </div>
-              )}
-            </div>
-          )}
+          <div className="h4 mb-0">Round</div>
+          <div className="display-4">{currentRound}</div>
         </div>
       </div>
 
-      {/* Área dos Botões (50%) */}
-      <div className="bg-dark border-top border-secondary border-opacity-25 d-flex align-items-center" style={{ height: '50vh' }}>
-        <div className="container h-75 py-4">
-          <div className="d-grid h-100">
-            {!isRunning ? (
-              <button 
-                className="btn btn-primary btn-lg rounded-3 fw-semibold h-100"
-                onClick={handleStartWorkout}
-                style={{ fontSize: '1.5rem' }}
-              >
-                <i className="fas fa-play-circle me-2"></i>
-                INICIAR
-              </button>
-            ) : (
-              !isRest && (
-                <button 
-                  className="btn btn-primary btn-lg rounded-3 fw-semibold h-100"
-                  onClick={() => setIsRest(true)}
-                >
-                  <i className="fas fa-check-circle me-2"></i>
-                  Finalizar Rodada
-                </button>
-              )
-            )}
+      {/* Overlay de Descanso */}
+      {isRest && (
+        <div 
+          className="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 1020 }}
+        >
+          <div className="display-1 text-warning mb-3">
+            {restTime}
           </div>
+          <h2 className="text-white mb-4">Tempo de Descanso</h2>
+          <button 
+            className="btn btn-outline-light btn-lg"
+            onClick={() => {
+              setIsRest(false);
+              setRestTime(60);
+              setCurrentRound(r => r + 1);
+            }}
+          >
+            Pular Descanso
+          </button>
         </div>
-      </div>
+      )}
     </div>
   );
 };

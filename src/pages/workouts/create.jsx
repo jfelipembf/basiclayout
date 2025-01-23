@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import { useUser } from '../../hooks/useUser';
 
 const CreateWorkout = () => {
-  const { addWorkout, loading } = useWorkout();
+  const { addWorkout, loading, sanitizeExercise } = useWorkout();
   const { user } = useUser();
   const navigate = useNavigate();
 
@@ -56,10 +56,17 @@ const CreateWorkout = () => {
 
   const handleAddExercise = () => {
     if (currentExercise.name && currentExercise.series && currentExercise.distance) {
+      // Usar sanitizeExercise para converter campos numéricos
+      const sanitizedExercise = sanitizeExercise({
+        ...currentExercise,
+        id: Date.now()
+      });
+
       setWorkoutData(prev => ({
         ...prev,
-        exercises: [...prev.exercises, { ...currentExercise, id: Date.now() }]
+        exercises: [...prev.exercises, sanitizedExercise]
       }));
+
       setCurrentExercise({
         name: '',
         description: '',
@@ -135,8 +142,17 @@ const CreateWorkout = () => {
     }
 
     try {
+      // Ajustar a data para considerar o timezone local
+      const date = new Date(workoutData.date + 'T12:00:00');
+      const adjustedDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
+        .toISOString()
+        .split('T')[0];
+
       const workoutWithExercises = {
         ...workoutData,
+        date: adjustedDate,
+        duration: Number(workoutData.duration) || 0,
+        exercises: workoutData.exercises.map(exercise => sanitizeExercise(exercise)),
         createdAt: new Date().toISOString(),
       };
 

@@ -92,26 +92,45 @@ export const useWorkout = () => {
 
   // Função para garantir que todos os campos necessários estejam presentes
   const sanitizeExercise = (exercise) => {
+    console.log('Raw exercise:', exercise);
     const defaultExercise = {
       id: '',
       name: '',
       description: '',
-      series: '',
-      repetitions: '',
-      distance: '',
-      duration: '',
+      series: 0,
+      repetitions: 0,
+      distance: 0,
+      duration: 0,
       material: '',
       intensity: '',
       videoUrl: '',
+      notes: '',
+      restTime: 0,
+      timePerSeries: 0,
+      technique: '',
       completed: false,
       completedAt: null
     };
 
-    return {
+    // Garante que nenhum campo seja undefined ou null
+    const sanitized = {
       ...defaultExercise,
-      ...exercise,
+      ...Object.fromEntries(
+        Object.entries(exercise).map(([key, value]) => {
+          // Campos que devem ser números
+          if (['repetitions', 'series', 'distance', 'duration', 'restTime', 'timePerSeries'].includes(key)) {
+            const numValue = Number(value);
+            console.log(`Converting ${key}:`, value, 'to:', numValue);
+            return [key, isNaN(numValue) ? 0 : numValue];
+          }
+          return [key, value === undefined || value === null ? '' : value];
+        })
+      ),
       completed: Boolean(exercise.completed)
     };
+
+    console.log('Sanitized exercise:', sanitized);
+    return sanitized;
   };
 
   const calculateWorkoutStats = (workout, exercises) => {
@@ -181,7 +200,13 @@ export const useWorkout = () => {
         const workoutData = workoutDoc.data();
         const workoutProgress = userProgress.workouts?.[workoutDoc.id] || {};
         
-        const exercises = workoutData.exercises.map((exercise, index) => {
+        // Ajustar a data para considerar o timezone local
+        const adjustedWorkoutData = {
+          ...workoutData,
+          date: workoutData.date ? new Date(workoutData.date + 'T00:00:00').toISOString().split('T')[0] : null
+        };
+
+        const exercises = adjustedWorkoutData.exercises.map((exercise, index) => {
           const exerciseId = exercise.id || `${exercise.name}-${index}`;
           const savedExercise = workoutProgress.exercises?.[exerciseId] || {};
           
@@ -194,7 +219,7 @@ export const useWorkout = () => {
 
         return {
           id: workoutDoc.id,
-          ...workoutData,
+          ...adjustedWorkoutData,
           status: workoutProgress.status || 'in_progress',
           exercises
         };
@@ -236,10 +261,19 @@ export const useWorkout = () => {
       const workoutData = workoutDoc.exists() ? workoutDoc.data() : {};
 
       // Preparar exercícios
-      const sanitizedExercises = exercises.map(exercise => ({
-        ...sanitizeExercise(exercise),
-        updatedAt: new Date().toISOString()
-      }));
+      const sanitizedExercises = exercises.map(exercise => {
+        const sanitized = sanitizeExercise(exercise);
+        // Garantir que campos numéricos sejam números
+        ['repetitions', 'series', 'distance', 'duration', 'restTime', 'timePerSeries'].forEach(field => {
+          if (sanitized[field]) {
+            sanitized[field] = Number(sanitized[field]);
+          }
+        });
+        return {
+          ...sanitized,
+          updatedAt: new Date().toISOString()
+        };
+      });
 
       const exercisesById = Object.fromEntries(
         sanitizedExercises.map(exercise => [exercise.id, exercise])
@@ -342,23 +376,10 @@ export const useWorkout = () => {
       await updateUserStats(userId, workoutStats);
       await updateMonthlyStats(userId, workoutId, workout.date, workoutStats);
 
-      // Criar notificação
-      const notificationsRef = collection(db, 'notifications');
-      await addDoc(notificationsRef, {
-        type: 'training',
-        itemId: workoutId,
-        itemName: workout.name || 'Treino',
-        itemDate: workout.date,
-        createdAt: serverTimestamp(),
-        action: 'created',
-        message: `Novo treino concluído: ${workout.name || 'Treino'}`
-      });
-
       await batch.commit();
-      toast.success(MESSAGES.COMPLETE_SUCCESS);
+      return true;
     } catch (error) {
       console.error('Error completing workout:', error);
-      toast.error(error.message || MESSAGES.SAVE_ERROR);
       throw error;
     } finally {
       setLoading(false);
@@ -407,6 +428,7 @@ export const useWorkout = () => {
     getWorkoutsByDate,
     updateWorkoutProgress,
     completeWorkout,
-    addWorkout
+    addWorkout,
+    sanitizeExercise
   };
 };

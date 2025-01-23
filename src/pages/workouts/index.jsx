@@ -40,7 +40,7 @@ const WorkoutPage = () => {
     error,
     getWorkoutsByDate,
     updateWorkoutProgress,
-    finishWorkout,
+    completeWorkout,
   } = useWorkout();
   const { loading: loadingUser, user } = useUser();
   const [selectedDateRange, setSelectedDateRange] = useState([
@@ -156,13 +156,11 @@ const WorkoutPage = () => {
   // Finalizar o treino após confirmação
   const finishWorkoutProgress = async (workout) => {
     try {
-      const success = await finishWorkout(workout.id, workout.exercises);
-      if (success) {
-        loadWorkouts();
-        setShowConfirmDialog(false);
-        setWorkoutToFinish(null);
-        toast.success('Treino finalizado com sucesso!');
-      }
+      await completeWorkout(workout.id, workout, workout.exercises);
+      loadWorkouts();
+      setShowConfirmDialog(false);
+      setWorkoutToFinish(null);
+      toast.success('Treino finalizado com sucesso!');
     } catch (error) {
       console.error('Error finishing workout:', error);
       toast.error('Erro ao finalizar treino');
@@ -255,10 +253,9 @@ const WorkoutPage = () => {
         </Alert>
       ) : (
         <Row className="workout-list">
-          <Col lg={6} className="mx-auto">
-            {displayedWorkouts.map((workout) => (
+          {displayedWorkouts.map((workout) => (
+            <Col xs={12} key={workout.id}>
               <Card
-                key={workout.id}
                 className="mb-4 bg-dark text-white workout-card shadow-sm"
               >
                 <Card.Header
@@ -319,13 +316,13 @@ const WorkoutPage = () => {
                       </div>
 
                       {/* Lista de exercícios */}
-                      <div className="mb-4">
+                      <div className="mb-3">
                         {workout.exercises.map((exercise, index) => (
                           <div
                             key={exercise.id || index}
-                            className="mb-3 p-3 border border-secondary rounded bg-black exercise-item"
+                            className="exercise-item"
                           >
-                            <div className="d-flex flex-column flex-md-row">
+                            <div className="d-flex align-items-start">
                               {/* Número do exercício */}
                               <div className="exercise-number">
                                 {index + 1}
@@ -333,45 +330,26 @@ const WorkoutPage = () => {
 
                               {/* Detalhes do exercício */}
                               <div className="flex-grow-1">
-                                <div className="d-flex justify-content-between align-items-start mb-2 exercise-header">
-                                  <div>
-                                    <h6 className="d-inline-flex align-items-center gap-2 exercise-title mb-1">
+                                <div className="d-flex justify-content-between align-items-start mb-2">
+                                  <div className="pe-4">
+                                    <h6 className="exercise-title mb-0">
                                       {exercise.name}
-                                      {exercise.intensity && (
-                                        <Badge
-                                          bg={
-                                            exercise.intensity === 'intensa'
-                                              ? 'danger'
-                                              : exercise.intensity === 'moderada'
-                                              ? 'warning'
-                                              : 'info'
-                                          }
-                                        >
-                                          <FaFire className="me-1" />
-                                          {exercise.intensity}
-                                        </Badge>
-                                      )}
                                     </h6>
-                                    <div className="text-white-50 small d-flex flex-wrap gap-2 exercise-details">
-                                      {exercise.series && (
-                                        <span>Séries: {exercise.series}</span>
-                                      )}
-                                      {exercise.repetitions && (
-                                        <span>
-                                          Repetições: {exercise.repetitions}
-                                        </span>
-                                      )}
-                                      {exercise.distance && (
-                                        <span>
-                                          Distância: {exercise.distance}m
-                                        </span>
-                                      )}
-                                      {exercise.material && (
-                                        <span>
-                                          Material: {exercise.material}
-                                        </span>
-                                      )}
-                                    </div>
+                                    {exercise.intensity && (
+                                      <Badge
+                                        bg={
+                                          exercise.intensity === 'intensa'
+                                            ? 'danger'
+                                            : exercise.intensity === 'moderada'
+                                            ? 'warning'
+                                            : 'info'
+                                        }
+                                        className="mt-1"
+                                      >
+                                        <FaFire className="me-1" />
+                                        {exercise.intensity}
+                                      </Badge>
+                                    )}
                                   </div>
                                   <Form.Check
                                     type="checkbox"
@@ -380,44 +358,89 @@ const WorkoutPage = () => {
                                       handleExerciseComplete(workout.id, index)
                                     }
                                     disabled={workout.status === 'completed'}
-                                    className="mt-2 mt-md-0"
                                   />
                                 </div>
-                                {exercise.description && (
-                                  <p className="text-white-50 mb-2 small exercise-description">
+
+                                <div className="exercise-details d-flex flex-wrap gap-2 mb-2">
+                                  {console.log('Exercise:', exercise)}
+                                  {console.log('Repetitions value:', exercise.repetitions)}
+                                  {console.log('Repetitions type:', typeof exercise.repetitions)}
+                                  
+                                  {exercise.series && exercise.series !== "" && (
+                                    <span className="text-light">
+                                      <i className="fas fa-redo-alt me-2"></i>
+                                      {exercise.series} {parseInt(exercise.series) === 1 ? 'série' : 'séries'}
+                                    </span>
+                                  )}
+                                  {Number(exercise.repetitions) > 0 && (
+                                    <span className="text-light">
+                                      <i className="fas fa-repeat me-2"></i>
+                                      {exercise.repetitions} rep
+                                    </span>
+                                  )}
+                                  {exercise.distance && exercise.distance !== "" && (
+                                    <span className="text-light">
+                                      <i className="fas fa-ruler me-2"></i>
+                                      {exercise.distance}m
+                                    </span>
+                                  )}
+                                  {exercise.timePerSeries && exercise.timePerSeries !== "" && (
+                                    <span className="text-light">
+                                      <i className="fas fa-stopwatch me-2"></i>
+                                      {exercise.timePerSeries} por série
+                                    </span>
+                                  )}
+                                  {exercise.restTime && exercise.restTime !== "" && (
+                                    <span className="text-light">
+                                      <i className="fas fa-hourglass-half me-2"></i>
+                                      {exercise.restTime} descanso
+                                    </span>
+                                  )}
+                                  {exercise.material && exercise.material !== "" && (
+                                    <span className="text-light">
+                                      <i className="fas fa-dumbbell me-2"></i>
+                                      {exercise.material}
+                                    </span>
+                                  )}
+                                  {exercise.intensity && exercise.intensity !== "" && (
+                                    <span className="text-light">
+                                      <i className="fas fa-tachometer-alt me-2"></i>
+                                      {exercise.intensity}
+                                    </span>
+                                  )}
+                                  {exercise.technique && exercise.technique !== "" && (
+                                    <span className="text-light">
+                                      <i className="fas fa-graduation-cap me-2"></i>
+                                      Técnica: {exercise.technique}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {exercise.description && exercise.description !== "" && (
+                                  <p className="exercise-description text-light mb-2">
+                                    <i className="fas fa-info-circle me-2"></i>
                                     {exercise.description}
                                   </p>
                                 )}
-                                <div className="d-flex flex-wrap gap-3 align-items-center">
-                                  {exercise.videoUrl && (
-                                    <Button
-                                      variant="link"
-                                      size="sm"
-                                      className="p-0 text-info"
-                                      href={exercise.videoUrl}
-                                      target="_blank"
-                                    >
-                                      <FaVideo className="me-1" />
+
+                                {exercise.notes && exercise.notes !== "" && (
+                                  <p className="exercise-notes text-light">
+                                    <i className="fas fa-comment-alt me-2"></i>
+                                    {exercise.notes}
+                                  </p>
+                                )}
+
+                                {exercise.videoUrl && exercise.videoUrl !== "" && (
+                                  <div className="mt-2">
+                                    <a href={exercise.videoUrl} 
+                                       target="_blank" 
+                                       rel="noopener noreferrer" 
+                                       className="text-light text-decoration-none">
+                                      <i className="fas fa-video me-2"></i>
                                       Ver vídeo
-                                    </Button>
-                                  )}
-                                  {exercise.completed && (
-                                    <div className="text-success small">
-                                      <FaCheck className="me-1" />
-                                      Concluído
-                                      {exercise.completedAt && (
-                                        <span className="ms-1">
-                                          (
-                                          {format(
-                                            new Date(exercise.completedAt),
-                                            'HH:mm'
-                                          )}
-                                          )
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
+                                    </a>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -440,8 +463,8 @@ const WorkoutPage = () => {
                   </div>
                 </Collapse>
               </Card>
-            ))}
-          </Col>
+            </Col>
+          ))}
         </Row>
       )}
 
