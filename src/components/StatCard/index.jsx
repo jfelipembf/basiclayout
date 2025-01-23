@@ -45,19 +45,27 @@ const StatCard = ({
 
   return (
     <div className="h-100">
-      <div className="card h-100 bg-dark border-0 shadow">
+      <div className="card h-100 bg-dark border-0" style={{
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+        borderRadius: '12px',
+        background: 'linear-gradient(145deg, #2a2a2a 0%, #1a1a1a 100%)'
+      }}>
         <div className="card-body p-4">
           {/* Header */}
           <div className="d-flex justify-content-between align-items-center mb-4">
             <div className="d-flex align-items-center">
-              <div 
-                className={`icon-container me-3 bg-${color} bg-opacity-10 rounded-3`}
-                style={{ width: '48px', height: '48px' }}
-              >
-                <i className={`fas ${icon} text-${color} fs-4`}></i>
+              <div className={`icon-circle bg-${color} bg-opacity-10 me-3`} style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <i className={`fas ${icon} text-${color}`} style={{ fontSize: '1.2rem' }}></i>
               </div>
               <div>
-                <h6 className="text-white-50 mb-0">{title}</h6>
+                <h6 className="mb-0 text-white-50">{title}</h6>
                 <h3 className="text-white mb-0">
                   {formatNumber(value, unit !== 'treinos')} {unit}
                 </h3>

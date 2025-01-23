@@ -1,6 +1,7 @@
 .dashboard-container {
-  padding: 24px;
-  width: 100%;
+  padding: 1.5rem;
+  background-color: #1a1d20;
+  min-height: 100vh;
 }
 
 .stats-grid {
@@ -141,6 +142,26 @@
   line-height: 1.4;
 }
 
+.card {
+  transition: transform 0.2s ease-in-out;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: linear-gradient(145deg, rgba(33,37,41,1) 0%, rgba(45,50,55,1) 100%) !important;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+.icon-container {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 @media (max-width: 1024px) {
   .content-grid {
     grid-template-columns: 1fr;
@@ -153,7 +174,7 @@
 
 @media (max-width: 768px) {
   .dashboard-container {
-    padding: 16px;
+    padding: 1rem;
   }
   
   .stats-grid {
@@ -172,4 +193,19 @@
   .chart-wrapper {
     padding: 16px;
   }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card {
+  animation: fadeIn 0.5s ease-out;
 }

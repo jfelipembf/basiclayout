@@ -21,6 +21,7 @@ import Events from './pages/events';
 import CreateEvent from './pages/events/create';
 import WorkoutSession from './pages/workout-session';
 import Competitions from './pages/competitions';
+import CreateCompetition from './pages/competitions/create';
 import Students from './pages/students';
 
 const AppRoutes = () => {
@@ -43,24 +44,17 @@ const AppRoutes = () => {
             <Route path="events" element={<Events />} />
             <Route path="events/create" element={<CreateEvent />} />
             <Route path="competitions" element={<Competitions />} />
+            <Route path="competitions/create" element={<CreateCompetition />} />
             <Route path="students" element={<Students />} />
           </Route>
 
           {/* Workout Session Route */}
           <Route path="/workout-session" element={<WorkoutSession />} />
+
+          {/* Fallback Route */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-        <ToastContainer
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="dark"
-        />
+        <ToastContainer position="top-right" theme="dark" />
       </div>
     </BrowserRouter>
   );

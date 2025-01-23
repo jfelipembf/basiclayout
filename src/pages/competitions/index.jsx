@@ -1,194 +1,429 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Card, Row, Col, Badge } from 'react-bootstrap';
+import React, { useEffect, useState } from 'react';
+import { Card, Row, Col, Button } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
+import { collection, getDocs, query, orderBy, addDoc, getDoc, doc, setDoc, where, limit } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/FirebaseContext';
-import { db } from '../../contexts/FirebaseContext';
-import { useLoader } from '../../contexts/LoaderContext';
-import { collection, getDocs, query, where, addDoc } from 'firebase/firestore';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { toast } from 'react-toastify';
 
 const Competitions = () => {
-  const { currentUser: user } = useAuth();
-  const { showLoader, hideLoader } = useLoader();
   const [competitions, setCompetitions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [registering, setRegistering] = useState(false);
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const [attemptCounts, setAttemptCounts] = useState({});
 
-  // Função para adicionar dados de exemplo
-  const addExampleData = async () => {
-    if (!user?.uid) return;
+  useEffect(() => {
+    const fetchCompetitions = async () => {
+      setLoading(true);
+      try {
+        const competitionsRef = collection(db, 'competitions');
+        const q = query(competitionsRef);
+        const querySnapshot = await getDocs(q);
+        
+        let fetchedCompetitions = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
 
-    const exampleCompetitions = [
-      {
-        userId: user.uid,
-        name: 'Campeonato Estadual de Natação 2025',
-        date: '15/03/2025',
-        image: 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?q=80&w=1470&h=850',
-        participants: 120,
-        position: 3,
-        location: 'São Paulo, SP',
-        category: '100m Livre',
-        time: '00:58:23'
-      },
-      {
-        userId: user.uid,
-        name: 'Copa Regional de Natação',
-        date: '28/02/2025',
-        image: 'https://images.unsplash.com/photo-1560089000-7433a4ebbd64?q=80&w=1473&h=850',
-        participants: 85,
-        position: 1,
-        location: 'Rio de Janeiro, RJ',
-        category: '50m Livre',
-        time: '00:27:45'
-      },
-      {
-        userId: user.uid,
-        name: 'Torneio Inverno de Natação',
-        date: '10/02/2025',
-        image: 'https://images.unsplash.com/photo-1622629797619-c100d3e2f841?q=80&w=1546&h=850',
-        participants: 150,
-        position: 5,
-        location: 'Belo Horizonte, MG',
-        category: '200m Livre',
-        time: '02:15:12'
+        // Ordenar competições: ativas primeiro, depois por data
+        fetchedCompetitions.sort((a, b) => {
+          // Primeiro critério: status ativo
+          if (a.isActive && !b.isActive) return -1;
+          if (!a.isActive && b.isActive) return 1;
+          
+          // Segundo critério: data da competição
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return dateA - dateB;
+        });
+
+        console.log('Competições ordenadas:', fetchedCompetitions);
+        setCompetitions(fetchedCompetitions);
+      } catch (error) {
+        console.error('Erro ao buscar competições:', error);
+        toast.error('Erro ao carregar competições');
+      } finally {
+        setLoading(false);
       }
-    ];
+    };
 
+    fetchCompetitions();
+  }, []);
+
+  const handleParticipate = async (competitionId) => {
+    if (!currentUser) {
+      toast.error('Você precisa estar logado para participar');
+      return;
+    }
+
+    setRegistering(true);
     try {
-      const competitionsRef = collection(db, 'competitions');
-      for (const competition of exampleCompetitions) {
-        await addDoc(competitionsRef, competition);
+      const now = new Date();
+      const yearMonth = format(now, 'yyyy-MM');
+      
+      // Verificar se a competição existe
+      const competitionRef = doc(db, 'competitions', competitionId);
+      const competitionDoc = await getDoc(competitionRef);
+      
+      if (!competitionDoc.exists()) {
+        toast.error('Competição não encontrada');
+        return;
       }
-      ('Dados de exemplo adicionados com sucesso!');
+
+      const competitionData = competitionDoc.data();
+
+      // Referência ao documento do usuário na competição
+      const registrationRef = doc(
+        db, 
+        'competitions', 
+        competitionId, 
+        'registrations', 
+        yearMonth, 
+        'participants', 
+        currentUser.uid
+      );
+
+      // Verificar se já existe um documento para este usuário
+      const existingRegistration = await getDoc(registrationRef);
+      
+      let attempts = [];
+      if (existingRegistration.exists()) {
+        attempts = existingRegistration.data().attempts || [];
+      }
+
+      // Criar nova tentativa
+      const newAttempt = {
+        attemptNumber: attempts.length + 1,
+        registrationDate: new Date().toISOString(),
+        targetTime: null,     // Tempo que o usuário fez
+        targetDistance: null, // Distância que o usuário fez
+        status: 'registered'
+      };
+
+      // Adicionar nova tentativa ao array
+      attempts.push(newAttempt);
+
+      // Dados atualizados do registro
+      const registrationData = {
+        userId: currentUser.uid,
+        userEmail: currentUser.email,
+        attempts,
+        lastUpdated: new Date().toISOString(),
+        competition: {
+          id: competitionId,
+          name: competitionData.name,
+          date: competitionData.date,
+          time: competitionData.time || '',
+          duration: competitionData.duration,
+          distance: competitionData.distance
+        }
+      };
+
+      // Salvar na subcoleção da competição
+      await setDoc(registrationRef, registrationData);
+
+      // Referência ao documento do usuário
+      const userCompetitionRef = doc(
+        db, 
+        'users', 
+        currentUser.uid, 
+        'competitions', 
+        yearMonth,
+        'registered',
+        competitionId
+      );
+
+      // Verificar se já existe um documento para esta competição
+      const existingUserCompetition = await getDoc(userCompetitionRef);
+      
+      let userAttempts = [];
+      if (existingUserCompetition.exists()) {
+        userAttempts = existingUserCompetition.data().attempts || [];
+      }
+
+      // Criar nova tentativa para o usuário (mesma estrutura)
+      const newUserAttempt = {
+        attemptNumber: userAttempts.length + 1,
+        registrationDate: new Date().toISOString(),
+        targetTime: null,     // Tempo que o usuário fez
+        targetDistance: null, // Distância que o usuário fez
+        status: 'registered'
+      };
+
+      // Adicionar nova tentativa ao array
+      userAttempts.push(newUserAttempt);
+
+      // Dados atualizados da competição do usuário
+      const userCompetitionData = {
+        attempts: userAttempts,
+        lastUpdated: new Date().toISOString(),
+        competition: {
+          id: competitionId,
+          name: competitionData.name,
+          date: competitionData.date,
+          time: competitionData.time || '',
+          duration: competitionData.duration,
+          distance: competitionData.distance
+        }
+      };
+
+      await setDoc(userCompetitionRef, userCompetitionData);
+
+      toast.success(`Tentativa #${newAttempt.attemptNumber} registrada com sucesso!`);
+      
+      // Atualizar o contador de tentativas localmente
+      setAttemptCounts(prev => ({
+        ...prev,
+        [competitionId]: newAttempt.attemptNumber + 1
+      }));
+
     } catch (error) {
-      console.error('Erro ao adicionar dados de exemplo:', error);
+      console.error('Erro ao participar:', error);
+      toast.error('Erro ao realizar inscrição. Tente novamente.');
+    } finally {
+      setRegistering(false);
     }
   };
 
-  const fetchCompetitions = useCallback(async () => {
-    if (!user?.uid) return;
+  const isRegistrationOpen = (competition) => {
+    if (!competition.isActive) return false;
     
-    showLoader();
-    try {
-      const competitionsRef = collection(db, 'competitions');
-      const q = query(competitionsRef, where('userId', '==', user.uid));
-      const querySnapshot = await getDocs(q);
-      
-      const competitionsData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+    const now = new Date();
+    const startDate = competition.registrationStartDate ? new Date(competition.registrationStartDate) : null;
+    const endDate = competition.registrationEndDate ? new Date(competition.registrationEndDate) : null;
 
-      if (competitionsData.length === 0) {
-        // Se não houver dados, adiciona os exemplos
-        await addExampleData();
-        // Busca novamente após adicionar
-        const newSnapshot = await getDocs(q);
-        setCompetitions(newSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })));
-      } else {
-        setCompetitions(competitionsData);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar competições:', error);
-    } finally {
-      hideLoader();
+    if (!startDate || !endDate) return true;
+    return now >= startDate && now <= endDate;
+  };
+
+  const getCompetitionStatus = (competition) => {
+    if (!competition.isActive) {
+      return {
+        text: 'Inativa',
+        variant: 'danger',
+        icon: 'times-circle'
+      };
     }
-  }, [user?.uid]);
+
+    if (!competition.registrationStartDate || !competition.registrationEndDate) {
+      return {
+        text: 'Inscrições Abertas',
+        variant: 'success',
+        icon: 'check-circle'
+      };
+    }
+
+    const now = new Date();
+    const startDate = new Date(competition.registrationStartDate);
+    const endDate = new Date(competition.registrationEndDate);
+
+    if (now < startDate) {
+      return {
+        text: `Inscrições iniciam em ${formatDate(competition.registrationStartDate)}`,
+        variant: 'warning',
+        icon: 'clock'
+      };
+    }
+
+    if (now > endDate) {
+      return {
+        text: 'Inscrições encerradas',
+        variant: 'danger',
+        icon: 'times-circle'
+      };
+    }
+
+    return {
+      text: `Inscrições até ${formatDate(competition.registrationEndDate)}`,
+      variant: 'success',
+      icon: 'check-circle'
+    };
+  };
 
   useEffect(() => {
-    fetchCompetitions();
-  }, [fetchCompetitions]);
+    const loadAttemptCounts = async () => {
+      if (!currentUser) return;
+
+      const yearMonth = format(new Date(), 'yyyy-MM');
+      const counts = {};
+
+      for (const competition of competitions) {
+        try {
+          const userCompetitionRef = doc(
+            db, 
+            'users', 
+            currentUser.uid, 
+            'competitions', 
+            yearMonth,
+            'registered',
+            competition.id
+          );
+          
+          const snapshot = await getDoc(userCompetitionRef);
+          
+          if (snapshot.exists()) {
+            const attempts = snapshot.data().attempts || [];
+            counts[competition.id] = attempts.length + 1;
+          } else {
+            counts[competition.id] = 1;
+          }
+        } catch (error) {
+          console.error('Erro ao carregar tentativas:', error);
+          counts[competition.id] = 1;
+        }
+      }
+
+      setAttemptCounts(counts);
+    };
+
+    loadAttemptCounts();
+  }, [competitions, currentUser]);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        const [day, month, year] = dateString.split('/');
+        return `${day}/${month}/${year}`;
+      }
+      return format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+    } catch {
+      return dateString;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center min-vh-100">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Carregando...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container-fluid p-4">
-      <Row className="g-4">
-        <Col xs={12}>
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <h4 className="text-white mb-0">
-              <i className="fas fa-trophy me-2"></i>
-              Minhas Competições
-            </h4>
-            <Badge bg="primary" className="px-3 py-2">
-              <i className="fas fa-award me-2"></i>
-              {competitions.length} Participações
-            </Badge>
-          </div>
-        </Col>
+    <div className="py-4">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="text-white mb-0">Competições</h2>
+        <Button 
+          variant="primary"
+          onClick={() => navigate('/competitions/create')}
+        >
+          <i className="fas fa-plus me-2"></i>
+          Nova Competição
+        </Button>
+      </div>
 
-        {competitions.map(competition => (
-          <Col key={competition.id} lg={4} md={6}>
-            <Card className="bg-dark h-100 border border-secondary border-opacity-50">
-              <div className="position-relative">
-                <Card.Img 
-                  variant="top" 
-                  src={competition.image}
-                  style={{ 
-                    height: '180px',
-                    objectFit: 'cover'
-                  }}
-                />
-                <Badge 
-                  bg={competition.position === 1 ? 'warning' : 
-                      competition.position === 2 ? 'light' :
-                      competition.position === 3 ? 'danger' : 'secondary'}
-                  className="position-absolute top-0 end-0 m-3 px-3 py-2"
-                >
-                  <i className={`fas fa-${competition.position === 1 ? 'trophy' : 
-                                        competition.position <= 3 ? 'medal' : 
-                                        'flag-checkered'} me-2`}></i>
-                  {competition.position === 1 ? 'Campeão' :
-                   competition.position === 2 ? 'Vice-campeão' :
-                   competition.position === 3 ? '3º Lugar' :
-                   `${competition.position}º Lugar`}
-                </Badge>
-              </div>
-              
-              <Card.Body className="d-flex flex-column">
-                <Card.Title className="text-white h5 mb-3">
-                  {competition.name}
-                </Card.Title>
-                
-                <Row className="g-2 mb-3">
-                  <Col xs={6}>
-                    <div className="rounded p-2 h-100">
-                      <div className="text-white-50 small mb-1">
-                        <i className="fas fa-swimming-pool me-2"></i>
-                        Categoria
-                      </div>
-                      <div className="text-white">{competition.category}</div>
+      {competitions.length === 0 ? (
+        <Card className="bg-dark text-white">
+          <Card.Body className="text-center py-5">
+            <i className="fas fa-trophy fa-3x mb-3 text-muted"></i>
+            <h5>Nenhuma competição encontrada</h5>
+            <p className="text-muted">
+              Clique no botão "Nova Competição" para criar sua primeira competição.
+            </p>
+          </Card.Body>
+        </Card>
+      ) : (
+        <Row xs={1} md={2} lg={3} className="g-4">
+          {competitions.map((competition) => (
+            <Col key={competition.id}>
+              <Card 
+                style={{ 
+                  height: '100%',
+                  opacity: competition.isActive ? 1 : 0.6,
+                  transition: 'opacity 0.3s ease'
+                }}
+                className="h-100 bg-dark text-white"
+              >
+                {competition.imageUrl && (
+                  <div className="position-relative" style={{ height: '200px' }}>
+                    <Card.Img
+                      variant="top"
+                      src={competition.imageUrl}
+                      alt={competition.name}
+                      style={{
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  </div>
+                )}
+                <Card.Body>
+                  <Card.Title className="h5 mb-3 text-light">{competition.name || 'Sem nome'}</Card.Title>
+                  
+                  <div className="mb-3">
+                    <div className={`text-${getCompetitionStatus(competition).variant} mb-3`}>
+                      <i className={`fas fa-${getCompetitionStatus(competition).icon} me-2`}></i>
+                      {getCompetitionStatus(competition).text}
                     </div>
-                  </Col>
-                  <Col xs={6}>
-                    <div className="rounded p-2 h-100">
-                      <div className="text-white-50 small mb-1">
-                        <i className="fas fa-stopwatch me-2"></i>
-                        Tempo
-                      </div>
-                      <div className="text-white">{competition.time}</div>
-                    </div>
-                  </Col>
-                </Row>
 
-                <div className="mt-auto">
-                  <div className="d-flex justify-content-between text-white-50 small mb-2">
-                    <div>
-                      <i className="fas fa-calendar-alt me-2"></i>
-                      {competition.date}
-                    </div>
-                    <div>
-                      <i className="fas fa-users me-2"></i>
-                      {competition.participants} atletas
-                    </div>
+                    {competition.date && (
+                      <div className="text-light mb-2">
+                        <i className="fas fa-calendar-alt me-2 text-light"></i>
+                        Data: {formatDate(competition.date)}
+                      </div>
+                    )}
+                    {competition.time && (
+                      <div className="text-light mb-2">
+                        <i className="fas fa-clock me-2 text-light"></i>
+                        Horário: {competition.time}
+                      </div>
+                    )}
+                    {competition.duration && (
+                      <div className="text-light mb-2">
+                        <i className="fas fa-hourglass-half me-2 text-light"></i>
+                        Duração: {competition.duration} minutos
+                      </div>
+                    )}
+                    {competition.distance && (
+                      <div className="text-light mb-2">
+                        <i className="fas fa-route me-2 text-light"></i>
+                        Distância: {competition.distance} metros
+                      </div>
+                    )}
+                    {competition.participants && (
+                      <div className="text-light mb-2">
+                        <i className="fas fa-users me-2 text-light"></i>
+                        Participantes: {competition.participants}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-white-50 small">
-                    <i className="fas fa-map-marker-alt me-2"></i>
-                    {competition.location}
-                  </div>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+                  <Button
+                    variant="outline-light"
+                    className="w-100"
+                    onClick={() => handleParticipate(competition.id)}
+                    disabled={registering || !competition.isActive}
+                  >
+                    {registering ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Inscrevendo...
+                      </>
+                    ) : !competition.isActive ? (
+                      <>
+                        <i className="fas fa-lock me-2"></i>
+                        Inscrições Indisponíveis
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-check-circle me-2"></i>
+                        Participar {attemptCounts[competition.id] > 1 ? `(Tentativa #${attemptCounts[competition.id]})` : ''}
+                      </>
+                    )}
+                  </Button>
+                </Card.Body>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      )}
     </div>
   );
 };

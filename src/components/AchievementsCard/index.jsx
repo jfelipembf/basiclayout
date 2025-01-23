@@ -1,273 +1,253 @@
 import React, { useState } from 'react';
-import { ProgressBar, Nav } from 'react-bootstrap';
-import { RANKS, BONUS_MILESTONES, calculateBonusPoints } from '../../utils/levels';
+import { ProgressBar } from 'react-bootstrap';
+import { RANKS, BONUS_MILESTONES, calculateBonusPoints, calculatePoints, calculateRank } from '../../utils/levels';
+import './styles.css';
 
 const AchievementsCard = ({ userInfo }) => {
-  const [activeTab, setActiveTab] = useState('pending');
-  
+  const [showAchieved, setShowAchieved] = useState(false);
+
   if (!userInfo) {
     console.log('⚠️ Nenhum dado de usuário recebido');
     return null;
   }
 
-  // Calcular bônus e marcos alcançados
-  const { bonusPoints, milestones } = calculateBonusPoints({
-    totalDistance: userInfo.totalDistance,
-    totalTime: userInfo.totalTime,
-    frequency: userInfo.frequency
+  // Converter distância para km (dividir por 1000) e tempo já está em minutos
+  const totalDistance = Number(userInfo.totalDistance || 0) / 1000; // Convertendo metros para km
+  const totalTime = Number(userInfo.totalTime || 0); // Já está em minutos
+  const frequency = Number(userInfo.frequency || 0);
+
+  // Logs para debug
+  console.log('🏃 Dados do usuário:', {
+    distância: `${totalDistance.toFixed(2)} km`,
+    tempo: `${totalTime} minutos (${(totalTime / 60).toFixed(1)} horas)`,
+    frequência: `${frequency} treinos`
   });
 
-  console.log('🎁 Bônus calculados:', {
-    totalBonus: bonusPoints,
-    marcosAlcancados: milestones
+  const { bonusPoints } = calculateBonusPoints({
+    totalDistance,
+    totalTime,
+    frequency
   });
 
-  // Criar lista de conquistas baseada nos marcos
-  const createMilestoneAchievements = () => {
-    const achievements = [];
-    
-    // Marcos de frequência
-    BONUS_MILESTONES.FREQUENCY.forEach(milestone => {
-      achievements.push({
-        icon: 'fa-calendar',
-        title: milestone.description,
-        description: `+${milestone.bonus} pontos bônus`,
-        isCompleted: userInfo.frequency >= milestone.amount,
-        progress: {
-          current: Math.min(userInfo.frequency, milestone.amount),
-          total: milestone.amount
-        },
-        color: '#e74c3c'
-      });
-    });
+  // Calcula pontos e rank
+  const { totalPoints } = calculatePoints({
+    totalDistance,
+    totalTime,
+    frequency
+  });
 
-    // Marcos de tempo
-    BONUS_MILESTONES.TIME.forEach(milestone => {
-      achievements.push({
-        icon: 'fa-clock',
-        title: milestone.description,
-        description: `+${milestone.bonus} pontos bônus`,
-        isCompleted: userInfo.totalTime >= milestone.amount,
-        progress: {
-          current: Math.min(userInfo.totalTime, milestone.amount),
-          total: milestone.amount
-        },
-        color: '#3498db'
-      });
-    });
+  const rankInfo = calculateRank(totalPoints);
+  
+  console.log('🎮 Informações de progresso:', {
+    pontos: totalPoints,
+    rank: rankInfo.rank,
+    nível: rankInfo.level,
+    pontosParaPróximoNível: rankInfo.pointsToNextLevel
+  });
 
-    // Marcos de distância
-    BONUS_MILESTONES.DISTANCE.forEach(milestone => {
-      achievements.push({
-        icon: 'fa-road',
-        title: milestone.description,
-        description: `+${milestone.bonus} pontos bônus`,
-        isCompleted: userInfo.totalDistance >= milestone.amount,
-        progress: {
-          current: Math.min(userInfo.totalDistance, milestone.amount),
-          total: milestone.amount
-        },
-        color: '#2ecc71'
-      });
-    });
-
-    return achievements;
+  const getNextAchievement = (current, milestones) => {
+    return milestones.find(m => current < m.amount) || null;
   };
 
-  const achievements = createMilestoneAchievements();
-  const completedAchievements = achievements.filter(achievement => achievement.isCompleted);
-  const pendingAchievements = achievements.filter(achievement => !achievement.isCompleted);
-
-  const calculateProgress = (achievement) => {
-    if (!achievement.progress) return 0;
-    return (achievement.progress.current / achievement.progress.total) * 100;
+  const getAchievedMilestones = (current, milestones) => {
+    return milestones.filter(m => current >= m.amount).sort((a, b) => b.amount - a.amount);
   };
+
+  const calculateProgress = (current, target) => {
+    return Math.min((current / target) * 100, 100);
+  };
+
+  const formatProgress = (current, target) => {
+    const progress = (current / target) * 100;
+    return Math.min(progress, 100).toFixed(0);
+  };
+
+  const formatTime = (minutes) => {
+    return (minutes / 60).toFixed(1);
+  };
+
+  const categories = [
+    {
+      key: 'distance',
+      name: 'Distância',
+      icon: 'fa-road',
+      color: '#2ecc71',
+      unit: 'km',
+      current: totalDistance,
+      milestones: BONUS_MILESTONES.DISTANCE,
+      format: (value) => Number(value).toFixed(1)
+    },
+    {
+      key: 'time',
+      name: 'Tempo',
+      icon: 'fa-clock',
+      color: '#3498db',
+      unit: 'h',
+      current: totalTime / 60, // Convertendo minutos para horas
+      milestones: BONUS_MILESTONES.TIME,
+      format: (value) => formatTime(value * 60) // Recebe horas, converte para minutos para formatação
+    },
+    {
+      key: 'frequency',
+      name: 'Frequência',
+      icon: 'fa-calendar',
+      color: '#e74c3c',
+      unit: 'treinos',
+      current: frequency,
+      milestones: BONUS_MILESTONES.FREQUENCY,
+      format: (value) => Math.round(value)
+    }
+  ];
 
   return (
-    <div className="achievements-container p-3 rounded-3" style={{ background: 'linear-gradient(145deg, rgba(33,37,41,1) 0%, rgba(45,50,55,1) 100%)' }}>
-      {/* Cabeçalho com Total de Bônus */}
-      <div className="level-section mb-3">
-        <div className="d-flex align-items-center p-3 rounded-3" style={{ background: 'rgba(0,0,0,0.2)' }}>
-          <div 
-            className="icon-container p-2 rounded-circle me-3"
-            style={{ 
-              background: 'rgba(13,110,253,0.2)',
-              width: '48px',
-              height: '48px',
+    <div className="card h-100 bg-dark border-0" style={{
+      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+      borderRadius: '12px',
+      background: 'linear-gradient(145deg, #2a2a2a 0%, #1a1a1a 100%)'
+    }}>
+      <div className="card-body p-4">
+        <div className="d-flex align-items-center justify-content-between mb-4">
+          <div className="d-flex align-items-center">
+            <div className="icon-circle bg-warning bg-opacity-10 me-3" style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
-            }}
-          >
-            <i className="fas fa-star text-warning"></i>
+            }}>
+              <i className="fas fa-trophy text-warning" style={{ fontSize: '1.2rem' }}></i>
+            </div>
+            <h5 className="mb-0 text-light">Conquistas</h5>
           </div>
-          <div>
-            <h5 className="mb-1 text-white">Pontos Bônus: {bonusPoints}</h5>
-            <p className="mb-0 text-white-50" style={{ fontSize: '0.875rem' }}>
-              {completedAchievements.length} marcos alcançados
-            </p>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            padding: '8px 15px',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'baseline'
+          }}>
+            <h3 className="mb-0 text-light">
+              {totalPoints}
+            </h3>
+            <small className="text-light ms-2" style={{ fontSize: '0.8rem' }}>pontos</small>
           </div>
         </div>
-      </div>
-
-      {/* Navegação em Pills */}
-      <Nav 
-        variant="pills" 
-        className="mb-3 d-flex justify-content-center"
-        activeKey={activeTab}
-        onSelect={(k) => setActiveTab(k)}
-      >
-        <Nav.Item>
-          <Nav.Link 
-            eventKey="pending"
-            className={`d-flex align-items-center px-3 py-2 ${activeTab === 'pending' ? 'active' : ''}`}
-            style={{
-              background: activeTab === 'pending' ? 'var(--bs-primary)' : 'rgba(255,255,255,0.1)',
-              border: 'none',
-              borderRadius: '50rem',
-              color: activeTab === 'pending' ? 'white' : 'rgba(255,255,255,0.75)',
-              fontSize: '0.875rem',
-              margin: '0 0.5rem'
-            }}
-          >
-            <i className="fas fa-clock me-2"></i>
-            Pendentes
-            <span 
-              className="ms-2 px-2 py-1 rounded-pill" 
-              style={{ 
-                background: activeTab === 'pending' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
-                fontSize: '0.75rem'
-              }}
-            >
-              {pendingAchievements.length}
-            </span>
-          </Nav.Link>
-        </Nav.Item>
-        <Nav.Item>
-          <Nav.Link 
-            eventKey="completed"
-            className={`d-flex align-items-center px-3 py-2 ${activeTab === 'completed' ? 'active' : ''}`}
-            style={{
-              background: activeTab === 'completed' ? 'var(--bs-primary)' : 'rgba(255,255,255,0.1)',
-              border: 'none',
-              borderRadius: '50rem',
-              color: activeTab === 'completed' ? 'white' : 'rgba(255,255,255,0.75)',
-              fontSize: '0.875rem',
-              margin: '0 0.5rem'
-            }}
-          >
-            <i className="fas fa-check-circle me-2"></i>
-            Completadas
-            <span 
-              className="ms-2 px-2 py-1 rounded-pill" 
-              style={{ 
-                background: activeTab === 'completed' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
-                fontSize: '0.75rem'
-              }}
-            >
-              {completedAchievements.length}
-            </span>
-          </Nav.Link>
-        </Nav.Item>
-      </Nav>
-
-      {/* Lista de Conquistas */}
-      <div className="achievements-list">
-        {(activeTab === 'completed' ? completedAchievements : pendingAchievements).map((achievement, index) => (
-          <div 
-            key={`${achievement.title}-${index}`}
-            className="achievement-item p-3 mb-2 rounded-3"
-            style={{ 
-              background: 'rgba(0,0,0,0.2)',
-              border: '1px solid rgba(255,255,255,0.1)'
-            }}
-          >
-            {achievement.progress && !achievement.isCompleted && (
-              <div className="mb-2">
-                <div className="d-flex justify-content-between align-items-center mb-1">
-                  <small className="text-white-50">
-                    {achievement.progress.current.toFixed(1)} / {achievement.progress.total.toFixed(1)}
-                  </small>
-                  <small className="text-white-50">
-                    {calculateProgress(achievement).toFixed(0)}%
-                  </small>
-                </div>
-                <ProgressBar 
-                  now={calculateProgress(achievement)} 
-                  style={{ 
-                    height: '4px',
-                    backgroundColor: 'rgba(255,255,255,0.1)'
-                  }}
-                />
+        <div className="d-flex align-items-center">
+          <div className="ms-2">
+            <h5 className="mb-0 text-light">
+              {RANKS[rankInfo.rank]?.name} {rankInfo.level}
+            </h5>
+            <div className="level-progress mt-3 mb-3" style={{ width: '300px', marginLeft: '-20px' }}>
+              <div className="d-flex justify-content-between mb-2">
+                <small className="text-white-50" style={{ fontSize: '0.75rem' }}>
+                  {totalPoints} pontos
+                </small>
+                <small className="text-white-50" style={{ fontSize: '0.75rem' }}>
+                  {totalPoints + rankInfo.pointsToNextLevel} pontos
+                </small>
               </div>
-            )}
-
-            <div className="d-flex align-items-center">
-              {/* Ícone */}
-              <div 
-                className="p-2 rounded-circle me-2"
+              <ProgressBar 
+                now={calculateProgress(totalPoints, totalPoints + rankInfo.pointsToNextLevel)}
+                variant="info"
                 style={{ 
-                  background: achievement.isCompleted ? 'rgba(25,135,84,0.2)' : 'rgba(13,110,253,0.2)',
-                  width: '40px',
-                  height: '40px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
+                  height: '6px', 
+                  width: '100%', 
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  borderRadius: '3px'
                 }}
-              >
-                <i 
-                  className={`fas ${achievement.icon}`}
-                  style={{ 
-                    color: achievement.color,
-                    fontSize: '1.25rem'
-                  }}
-                ></i>
+              />
+              <div className="d-flex justify-content-end mt-2">
+                <small className="text-white-50" style={{ fontSize: '0.75rem' }}>
+                  Próximo: {RANKS[rankInfo.rank]?.name} {rankInfo.level + 1}
+                </small>
               </div>
-
-              {/* Conteúdo */}
-              <div className="flex-grow-1">
-                <h6 className="text-white mb-0" style={{ fontSize: '0.9rem' }}>{achievement.title}</h6>
-                <p className="text-white-50 small mb-1" style={{ fontSize: '0.8rem' }}>{achievement.description}</p>
-                
-                {achievement.isCompleted && (
-                  <div className="d-flex align-items-center">
-                    <i className="fas fa-check-circle text-success me-1" style={{ fontSize: '0.75rem' }}></i>
-                    <span className="text-success" style={{ fontSize: '0.75rem' }}>Completado</span>
-                  </div>
-                )}
-              </div>
-
-              {achievement.isCompleted && (
-                <div 
-                  className="ms-2 p-2 rounded-circle"
-                  style={{ 
-                    background: 'rgba(25,135,84,0.2)',
-                    width: '32px',
-                    height: '32px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <i className="fas fa-check text-success"></i>
-                </div>
-              )}
             </div>
           </div>
-        ))}
+        </div>
 
-        {/* Mensagem quando não há conquistas */}
-        {((activeTab === 'completed' && completedAchievements.length === 0) || 
-          (activeTab === 'pending' && pendingAchievements.length === 0)) && (
-          <div className="text-center py-3">
-            <i className="fas fa-trophy text-white-50 mb-2" style={{ fontSize: '2rem' }}></i>
-            <p className="text-white-50 mb-0">
-              {activeTab === 'completed' 
-                ? 'Você ainda não completou nenhuma conquista.' 
-                : 'Não há conquistas pendentes.'}
-            </p>
+        <div className="d-flex justify-content-end mb-4">
+          <div className="achievement-selector">
+            <button 
+              className={!showAchieved ? 'active' : ''}
+              onClick={() => setShowAchieved(false)}
+            >
+              Próximas
+            </button>
+            <button 
+              className={showAchieved ? 'active' : ''}
+              onClick={() => setShowAchieved(true)}
+            >
+              Conquistadas
+            </button>
           </div>
-        )}
+        </div>
+
+        <div className="achievements-list">
+          {showAchieved ? (
+            categories.map(category => {
+              const achieved = getAchievedMilestones(category.current, category.milestones);
+              return achieved.map((milestone, index) => (
+                <div key={`${category.key}-${index}`} className="achievement-item">
+                  <i className={`fas ${category.icon}`} style={{ color: category.color }}></i>
+                  <div className="achievement-info">
+                    <div className="achievement-main">
+                      <span className="achievement-name">{category.name}</span>
+                      <span className="achievement-value">
+                        {category.format(milestone.amount)} {category.unit}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="achievement-bonus">
+                    +{milestone.bonus}
+                  </div>
+                </div>
+              ));
+            })
+          ) : (
+            categories.map(category => {
+              const next = getNextAchievement(category.current, category.milestones);
+              
+              return (
+                <div key={category.key} className="achievement-item">
+                  <i className={`fas ${category.icon}`} style={{ color: category.color }}></i>
+                  <div className="achievement-info">
+                    <div className="achievement-main">
+                      <span className="achievement-name">{category.name}</span>
+                      <div className="achievement-progress-info">
+                        {next ? (
+                          <>
+                            <span className="achievement-value">
+                              {category.format(category.current)}/{category.format(next.amount)} {category.unit}
+                            </span>
+                            <span className="progress-percent">
+                              {formatProgress(category.current, next.amount)}%
+                            </span>
+                          </>
+                        ) : (
+                          <span className="achievement-complete">Todas conquistas alcançadas!</span>
+                        )}
+                      </div>
+                    </div>
+                    {next && (
+                      <ProgressBar 
+                        now={calculateProgress(category.current, next.amount)}
+                        variant="custom"
+                        style={{ backgroundColor: `${category.color}20` }}
+                        className="progress-mini"
+                      />
+                    )}
+                  </div>
+                  {next && (
+                    <div className="achievement-bonus">
+                      +{next.bonus}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
     </div>
   );

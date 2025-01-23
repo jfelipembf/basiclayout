@@ -11,7 +11,8 @@ import {
   serverTimestamp, 
   writeBatch,
   increment,
-  updateDoc
+  updateDoc,
+  addDoc
 } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
@@ -301,10 +302,111 @@ export const useWorkout = () => {
     }
   }, [db, auth.currentUser]);
 
+  const completeWorkout = async (workoutId, workout, exercises) => {
+    if (!auth.currentUser) {
+      throw new Error(MESSAGES.AUTH_REQUIRED);
+    }
+
+    try {
+      setLoading(true);
+      const userId = auth.currentUser.uid;
+      const batch = writeBatch(db);
+
+      // Atualizar progresso do treino
+      const progressRef = doc(db, 'workoutProgress', userId);
+      const progressDoc = await getDoc(progressRef);
+      const currentProgress = progressDoc.exists() ? progressDoc.data() : { workouts: {} };
+
+      const workoutProgress = {
+        ...currentProgress.workouts[workoutId],
+        status: 'completed',
+        completedAt: serverTimestamp(),
+        exercises: exercises.reduce((acc, exercise) => {
+          acc[exercise.id] = {
+            completed: exercise.completed,
+            completedAt: exercise.completedAt
+          };
+          return acc;
+        }, {})
+      };
+
+      batch.set(progressRef, {
+        workouts: {
+          ...currentProgress.workouts,
+          [workoutId]: workoutProgress
+        }
+      }, { merge: true });
+
+      // Calcular e atualizar estatísticas
+      const workoutStats = calculateWorkoutStats(workout, exercises);
+      await updateUserStats(userId, workoutStats);
+      await updateMonthlyStats(userId, workoutId, workout.date, workoutStats);
+
+      // Criar notificação
+      const notificationsRef = collection(db, 'notifications');
+      await addDoc(notificationsRef, {
+        type: 'training',
+        itemId: workoutId,
+        itemName: workout.name || 'Treino',
+        itemDate: workout.date,
+        createdAt: serverTimestamp(),
+        action: 'created',
+        message: `Novo treino concluído: ${workout.name || 'Treino'}`
+      });
+
+      await batch.commit();
+      toast.success(MESSAGES.COMPLETE_SUCCESS);
+    } catch (error) {
+      console.error('Error completing workout:', error);
+      toast.error(error.message || MESSAGES.SAVE_ERROR);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addWorkout = async (workoutData) => {
+    if (!auth.currentUser) {
+      throw new Error(MESSAGES.AUTH_REQUIRED);
+    }
+
+    try {
+      setLoading(true);
+      const userId = auth.currentUser.uid;
+      const workoutRef = await addDoc(collection(db, 'workouts'), {
+        ...workoutData,
+        createdAt: serverTimestamp(),
+        userId
+      });
+
+      // Criar notificação
+      const notificationsRef = collection(db, 'notifications');
+      await addDoc(notificationsRef, {
+        type: 'training',
+        itemId: workoutRef.id,
+        itemName: workoutData.name || 'Treino',
+        itemDate: workoutData.date,
+        createdAt: serverTimestamp(),
+        action: 'created',
+        message: `Novo treino adicionado: ${workoutData.name}`
+      });
+
+      toast.success(MESSAGES.SAVE_SUCCESS);
+    } catch (error) {
+      console.error('Erro ao adicionar treino:', error);
+      toast.error(MESSAGES.SAVE_ERROR);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     loading,
     error,
     getWorkoutsByDate,
-    updateWorkoutProgress
+    updateWorkoutProgress,
+    completeWorkout,
+    addWorkout
   };
 };
